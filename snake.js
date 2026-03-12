@@ -9,7 +9,7 @@
 //    4. Expose a minimal global debug API in dev mode
 // ═══════════════════════════════════════════════════════════════
 
-'use strict';
+
 
 // ── Dependency check ─────────────────────────────────────────────
 (function checkDeps() {

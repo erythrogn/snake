@@ -5,7 +5,7 @@
 //  Depends on: snake.config.js, snake.renderer.js
 // ═══════════════════════════════════════════════════════════════
 
-'use strict';
+
 
 // ── Shared mutable state ─────────────────────────────────────────
 // Renderer reads this object directly via reference.
@@ -878,3 +878,7 @@ Engine._internals = {
 };
 
 // ── end of snake.engine.js (extended) ─────────────────────────────
+
+// ── Expose engine globals ─────────────────────────────────────────
+window.Engine = Engine;
+window.state  = state;

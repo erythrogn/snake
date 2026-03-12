@@ -4,7 +4,7 @@
 //  Depends on: snake.config.js
 // ═══════════════════════════════════════════════════════════════
 
-'use strict';
+
 
 // ── Canvas setup ─────────────────────────────────────────────────
 const canvas  = document.getElementById('c');
@@ -1041,3 +1041,7 @@ Bus.on('gameOver', ({ }) => {
 });
 
 // ── end of snake.renderer.js (extended) ───────────────────────────
+
+// ── Expose renderer global ────────────────────────────────────────
+window.Renderer = Renderer;
+window.canvas   = canvas;

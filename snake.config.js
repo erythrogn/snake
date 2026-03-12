@@ -3,7 +3,7 @@
 //  All game constants, level definitions, food types, powerups
 // ═══════════════════════════════════════════════════════════════
 
-'use strict';
+
 
 // ── Grid & Canvas ────────────────────────────────────────────────
 const CFG = Object.freeze({
@@ -944,3 +944,25 @@ function loadSavedTheme() {
 }
 
 // ── end of snake.config.js (extended) ────────────────────────────
+
+// ── Expose all globals explicitly ────────────────────────────────
+window.CFG           = CFG;
+window.MODES         = MODES;
+window.FOOD_TYPES    = FOOD_TYPES;
+window.POWERUP_TYPES = POWERUP_TYPES;
+window.LEVELS        = LEVELS;
+window.DIR_VECTORS   = DIR_VECTORS;
+window.OPPOSITE      = OPPOSITE;
+window.Ease          = Ease;
+window.Color         = Color;
+window.MathUtil      = MathUtil;
+window.Store         = Store;
+window.Bus           = Bus;
+window.weightedRandom = weightedRandom;
+window.AnimPresets   = (typeof AnimPresets !== 'undefined') ? AnimPresets : {};
+window.ALL_LEVELS    = (typeof ALL_LEVELS !== 'undefined') ? ALL_LEVELS : LEVELS;
+window.THEMES        = (typeof THEMES !== 'undefined') ? THEMES : [];
+window.applyTheme    = (typeof applyTheme !== 'undefined') ? applyTheme : function(){};
+window.LevelProgress = (typeof LevelProgress !== 'undefined') ? LevelProgress : {};
+window.loadSavedTheme= (typeof loadSavedTheme !== 'undefined') ? loadSavedTheme : function(){};
+window._activeTheme  = 0;

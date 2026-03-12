@@ -5,7 +5,7 @@
 //  Depends on: snake.config.js, snake.engine.js, snake.renderer.js
 // ═══════════════════════════════════════════════════════════════
 
-'use strict';
+
 
 // ── DOM References ───────────────────────────────────────────────
 const DOM = (() => {
@@ -804,3 +804,6 @@ document.addEventListener('keydown', e => {
 Object.assign(window, { PauseOverlay, MilestoneToast, LevelMessage, KeyHelp });
 
 // ── end of snake.ui.js (extended) ─────────────────────────────────
+
+// ── Expose UI globals ─────────────────────────────────────────────
+window.UIInit = UIInit;
