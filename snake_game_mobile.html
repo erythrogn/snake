@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SNAKE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="snake.css">
+</head>
+<body>
+<div id="root">
+
+  <div id="hdr">
+    <div id="logo">snake</div>
+    <div id="hdr-right">
+      pontuação
+      <span id="score-live">00</span>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="stat-cell">
+      streak
+      <span class="stat-val" id="st-streak">0</span>
+    </div>
+    <div class="stat-cell">
+      combo
+      <span class="stat-val" id="st-combo">×1</span>
+    </div>
+    <div class="stat-cell">
+      recorde
+      <span class="stat-val" id="st-best">0</span>
+    </div>
+  </div>
+
+  <div id="mode-row">
+    <button class="mode-btn active" data-mode="classic">clássico</button>
+    <button class="mode-btn" data-mode="wrap">portal</button>
+    <button class="mode-btn" data-mode="speed">veloz</button>
+  </div>
+
+  <div id="arena">
+    <canvas id="c"></canvas>
+    <div id="combo-popup"></div>
+    <div id="overlay">
+      <span id="ov-label">snake</span>
+      <span id="ov-score">—</span>
+      <span id="ov-sub"></span>
+      <span id="ov-best" style="display:none"></span>
+      <button id="play-btn">jogar</button>
+    </div>
+  </div>
+
+  <div id="pw-bar"><div id="pw-fill"></div></div>
+
+  <div id="dpad">
+    <button class="dpad-btn dpad-up" data-d="UP">↑</button>
+    <button class="dpad-btn dpad-l"  data-d="LEFT">←</button>
+    <button class="dpad-btn dpad-d"  data-d="DOWN">↓</button>
+    <button class="dpad-btn dpad-r"  data-d="RIGHT">→</button>
+  </div>
+
+  <div id="foot">setas do teclado ou toque · swipe também funciona</div>
+
+</div>
+<script src="snake.js"></script>
+</body>
+</html>
