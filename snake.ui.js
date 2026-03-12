@@ -8,14 +8,19 @@
 
 
 // ── DOM References ───────────────────────────────────────────────
+
 const DOM = (() => {
   const q  = id => document.getElementById(id);
   const qa = sel => document.querySelectorAll(sel);
+  
   return {
     // Header
     logo:           q('logo'),
     scoreLive:      q('score-live'),
-
+// sons
+    soundBtn:       q('sound-btn'),
+    iconSoundOn:    q('icon-sound-on'),
+    iconSoundOff:   q('icon-sound-off'),
     // Stats bar
     stStreak:       q('st-streak'),
     stCombo:        q('st-combo'),
@@ -175,7 +180,12 @@ function _showGameOver(data) {
     DOM.ovLabel.textContent = data.isNew ? '🏆 novo recorde!' : 'fim de jogo';
   }
   if (DOM.ovScore) DOM.ovScore.textContent = String(data.score).padStart(2, '0');
-  if (DOM.ovSub)   DOM.ovSub.textContent   = `${data.streak} comidos · combo ×${data.combo}`;
+  if (DOM.ovSub) {
+    DOM.ovSub.innerHTML = `${data.streak} comidos · combo ×${data.combo}
+      <span style="display: block; margin-top: 12px; font-size: 9px; opacity: 0.6; letter-spacing: 0.1em;">
+        PRESSIONE <b style="color: var(--fg);">ESPAÇO</b> OU <b style="color: var(--fg);">R</b> PARA REINICIAR
+      </span>`;
+  }
 
   if (DOM.ovBest) {
     if (!data.isNew && best > 0) {
@@ -444,7 +454,20 @@ function _bindButtons() {
   if (DOM.statsBack) {
     DOM.statsBack.addEventListener('click', _hideStatsPanel);
   }
-
+if (DOM.soundBtn) {
+    DOM.soundBtn.addEventListener('click', () => {
+      const isEnabled = SoundBus.toggle();
+      
+      // Animação da troca de ícone
+      if (isEnabled) {
+        DOM.iconSoundOff.style.display = 'none';
+        DOM.iconSoundOn.style.display = 'block';
+      } else {
+        DOM.iconSoundOn.style.display = 'none';
+        DOM.iconSoundOff.style.display = 'block';
+      }
+    });
+  }
   DOM.modeBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       if (state.phase === 'playing') return; // don't switch mid-game

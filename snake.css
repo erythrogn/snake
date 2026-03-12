@@ -609,7 +609,35 @@ canvas {
   letter-spacing: -0.02em;
   font-family: var(--font-display);
 }
+/* ── Icon Buttons (Sound) ────────────────────────────────────── */
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--muted);
+  color: var(--muted);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--t-base) var(--ease);
+}
 
+.icon-btn:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+  transform: scale(1.05);
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.icon-btn svg {
+  transition: opacity var(--t-fast) var(--ease);
+}
 /* ── Death flash ─────────────────────────────────────────────── */
 
 @keyframes flash {
