@@ -841,22 +841,86 @@ function calcPulse(preset, phase) {
 }
 
 // ── Sound stub (no audio, but hooks ready for future) ─────────────
-const SoundBus = {
-  _enabled: false,
+// ── Web Audio API Synthesizer (8-bit style) ──────────────────────
+const SoundBus = (() => {
+  let ctx = null;
+  let _enabled = false;
 
-  play(/*event*/) {
-    // Placeholder — implement with Web Audio API if needed:
-    // e.g. event = 'eat' | 'death' | 'levelup' | 'powerup' | 'combo'
-    // const buffer = _buffers[event];
-    // if (buffer && this._enabled) ...
-  },
+  function initContext() {
+    if (!ctx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) ctx = new AudioContext();
+    }
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume();
+    }
+  }
 
-  enable()  { this._enabled = true; },
-  disable() { this._enabled = false; },
-};
+  // Função geradora de frequências
+  function playTone(freq, type, duration, vol = 0.1, slideFreq = null) {
+    if (!_enabled || !ctx) return;
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
 
-Bus.on('foodEaten',   () => SoundBus.play('eat'));
-Bus.on('gameOver',    () => SoundBus.play('death'));
+    osc.type = type;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (slideFreq) {
+      osc.frequency.exponentialRampToValueAtTime(slideFreq, ctx.currentTime + duration);
+    }
+
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  }
+
+  return {
+    get isEnabled() { return _enabled; },
+    
+    toggle() {
+      _enabled = !_enabled;
+      if (_enabled) initContext();
+      return _enabled;
+    },
+
+    play(event) {
+      if (!_enabled || !ctx) return;
+      switch (event) {
+        case 'eat':
+          // Blip curto e agudo
+          playTone(600, 'sine', 0.1, 0.1, 800);
+          break;
+        case 'combo':
+          // Blip mais agudo para combos altos
+          playTone(900, 'sine', 0.15, 0.15, 1200);
+          break;
+        case 'death':
+          // Som grave e descendente
+          playTone(150, 'sawtooth', 0.4, 0.2, 50);
+          break;
+        case 'levelup':
+          // Arpejo de vitória
+          playTone(400, 'square', 0.1, 0.05);
+          setTimeout(() => playTone(500, 'square', 0.1, 0.05), 100);
+          setTimeout(() => playTone(600, 'square', 0.2, 0.05), 200);
+          break;
+        case 'powerup':
+          // Som oscilante metálico
+          playTone(300, 'triangle', 0.3, 0.1, 900);
+          break;
+      }
+    }
+  };
+})();
+
+// Hooks de áudio
+Bus.on('foodEaten',     ({ combo }) => SoundBus.play(combo >= 3 ? 'combo' : 'eat'));
+Bus.on('gameOver',      () => SoundBus.play('death'));
 Bus.on('levelComplete', () => SoundBus.play('levelup'));
 Bus.on('powerupStart',  () => SoundBus.play('powerup'));
 
