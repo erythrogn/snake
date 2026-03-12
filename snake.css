@@ -4,7 +4,6 @@
    ═══════════════════════════════════════════════════════════════ */
 
 /* ── Design tokens ───────────────────────────────────────────── */
-
 :root {
   --bg:        #f4f1ec;
   --fg:        #111110;
@@ -34,7 +33,6 @@
 }
 
 /* ── Reset ───────────────────────────────────────────────────── */
-
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -64,7 +62,6 @@ button {
 }
 
 /* ── Layout root ─────────────────────────────────────────────── */
-
 #root {
   display: flex;
   flex-direction: column;
@@ -76,7 +73,6 @@ button {
 }
 
 /* ── Header ──────────────────────────────────────────────────── */
-
 #hdr {
   width: 100%;
   max-width: var(--max-width);
@@ -90,9 +86,19 @@ button {
   font-size: 30px;
   letter-spacing: -0.02em;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.logo-icon {
+  color: var(--fg);
 }
 
 #hdr-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
   text-align: right;
   letter-spacing: 0.12em;
   color: var(--muted);
@@ -100,7 +106,7 @@ button {
   line-height: 1.7;
 }
 
-#hdr-right span {
+.score-container span {
   display: block;
   font-size: 18px;
   font-weight: 700;
@@ -109,8 +115,36 @@ button {
   line-height: 1;
 }
 
-/* ── Stats bar ───────────────────────────────────────────────── */
+/* ── Icon Buttons (Sound) ────────────────────────────────────── */
+.icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--t-base) var(--ease);
+}
 
+.icon-btn:hover {
+  background: var(--surface);
+  transform: scale(1.05);
+}
+
+.icon-btn:active {
+  transform: scale(0.95);
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.icon-btn svg {
+  transition: opacity var(--t-fast) var(--ease);
+}
+
+/* ── Stats bar ───────────────────────────────────────────────── */
 #stats {
   width: 100%;
   max-width: var(--max-width);
@@ -141,7 +175,6 @@ button {
   transition: color var(--t-base) var(--ease);
 }
 
-/* Combo color states */
 .stat-val[data-level="mid"] { color: #444; }
 .stat-val[data-level="high"] {
   color: var(--fg);
@@ -154,7 +187,6 @@ button {
 }
 
 /* ── Mode selector ───────────────────────────────────────────── */
-
 #mode-row {
   width: 100%;
   max-width: var(--max-width);
@@ -170,10 +202,7 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
-  transition:
-    border-color var(--t-base) var(--ease),
-    background   var(--t-base) var(--ease),
-    color        var(--t-base) var(--ease);
+  transition: all var(--t-base) var(--ease);
 }
 
 .mode-btn:hover:not(.active):not(:disabled) {
@@ -188,7 +217,6 @@ button {
 }
 
 /* ── Level info bar ──────────────────────────────────────────── */
-
 #level-bar {
   width: 100%;
   max-width: var(--max-width);
@@ -215,7 +243,6 @@ button {
 }
 
 /* ── Arena ───────────────────────────────────────────────────── */
-
 #arena {
   position: relative;
   border: var(--border-w) solid var(--border);
@@ -229,7 +256,6 @@ canvas {
 }
 
 /* ── Main overlay ────────────────────────────────────────────── */
-
 #overlay {
   position: absolute;
   inset: 0;
@@ -266,6 +292,7 @@ canvas {
   text-transform: uppercase;
   color: var(--muted);
   margin-top: var(--sp-1);
+  text-align: center;
 }
 
 #ov-best {
@@ -285,22 +312,10 @@ canvas {
   color: var(--fg);
 }
 
-/* Overlay phase variants */
-#overlay[data-phase="gameover"] #ov-label {
-  color: var(--fg);
-  letter-spacing: 0.2em;
-}
-#overlay[data-phase="levelup"] #ov-score {
-  font-size: 52px;
-}
-#overlay[data-phase="win"] #ov-label {
-  font-family: var(--font-display);
-  font-size: 14px;
-  letter-spacing: 0.05em;
-  color: var(--fg);
-}
+#overlay[data-phase="gameover"] #ov-label { color: var(--fg); letter-spacing: 0.2em; }
+#overlay[data-phase="levelup"] #ov-score { font-size: 52px; }
+#overlay[data-phase="win"] #ov-label { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.05em; color: var(--fg); }
 
-/* Primary button */
 #play-btn {
   margin-top: var(--sp-5);
   padding: var(--sp-3) var(--sp-6);
@@ -309,19 +324,15 @@ canvas {
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--fg);
-  transition:
-    background var(--t-base) var(--ease),
-    color      var(--t-base) var(--ease);
+  transition: all var(--t-base) var(--ease);
 }
 
-#play-btn:hover,
-#play-btn:focus-visible {
+#play-btn:hover, #play-btn:focus-visible {
   background: var(--fg);
   color: var(--bg);
   outline: none;
 }
 
-/* Overlay secondary actions */
 #overlay-actions {
   display: flex;
   gap: var(--sp-2);
@@ -344,7 +355,6 @@ canvas {
 }
 
 /* ── Combo popup ─────────────────────────────────────────────── */
-
 #combo-popup {
   position: absolute;
   inset: 0;
@@ -371,9 +381,8 @@ canvas {
   100% { opacity: 0; transform: scale(0.9) translateY(-16px); }
 }
 
-/* ── Power-up bar ────────────────────────────────────────────── */
-
-#pw-bar {
+/* ── Power-up & Timer bar ────────────────────────────────────── */
+#pw-bar, #timer-bar {
   width: 100%;
   max-width: var(--max-width);
   height: 2px;
@@ -381,14 +390,15 @@ canvas {
   overflow: hidden;
 }
 
-#pw-fill {
+#pw-fill, #timer-fill {
   height: 100%;
   background: var(--fg);
-  width: 0%;
   transition: width 100ms linear;
 }
 
-/* Powerup kind tints (still B&W but different patterns) */
+#pw-fill { width: 0%; }
+#timer-fill { width: 100%; }
+
 #pw-bar[data-kind="slow"]   #pw-fill { background: var(--fg); }
 #pw-bar[data-kind="ghost"]  #pw-fill { background: var(--muted); }
 #pw-bar[data-kind="magnet"] #pw-fill { background: var(--fg); }
@@ -397,39 +407,16 @@ canvas {
   animation: bar-pulse 0.5s ease-in-out infinite alternate;
 }
 
-@keyframes bar-pulse {
-  from { opacity: 0.5; }
-  to   { opacity: 1; }
-}
-
-/* ── Timer bar ───────────────────────────────────────────────── */
-
-#timer-bar {
-  width: 100%;
-  max-width: var(--max-width);
-  height: 2px;
-  background: var(--ghost);
-  overflow: hidden;
-}
-
-#timer-fill {
-  height: 100%;
-  background: var(--fg);
-  width: 100%;
-  transition: width 100ms linear;
-}
-
 #timer-fill[data-urgent="true"] {
-  animation: timer-urgent 0.5s ease-in-out infinite alternate;
+  animation: bar-pulse 0.5s ease-in-out infinite alternate;
 }
 
-@keyframes timer-urgent {
+@keyframes bar-pulse {
   from { opacity: 0.4; }
   to   { opacity: 1; }
 }
 
 /* ── D-Pad ───────────────────────────────────────────────────── */
-
 #dpad {
   display: grid;
   grid-template-columns: repeat(3, var(--btn-size));
@@ -442,15 +429,12 @@ canvas {
   height: var(--btn-size);
   border: 1px solid var(--border);
   background: transparent;
-  font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--fg);
   border-radius: 2px;
-  transition:
-    background var(--t-fast),
-    color      var(--t-fast);
+  transition: all var(--t-fast);
 }
 
 .dpad-btn:active {
@@ -463,8 +447,6 @@ canvas {
 .dpad-d  { grid-column: 2; grid-row: 2; }
 .dpad-r  { grid-column: 3; grid-row: 2; }
 
-/* ── Footer hint ─────────────────────────────────────────────── */
-
 #foot {
   letter-spacing: 0.08em;
   color: var(--muted);
@@ -473,7 +455,6 @@ canvas {
 }
 
 /* ── Floating panels ─────────────────────────────────────────── */
-
 .panel {
   position: fixed;
   inset: 0;
@@ -488,9 +469,7 @@ canvas {
   overscroll-behavior: contain;
 }
 
-.panel.hidden {
-  display: none;
-}
+.panel.hidden { display: none; }
 
 .panel-header {
   display: flex;
@@ -512,7 +491,7 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition: all var(--t-fast);
 }
 
 .panel-header button:hover {
@@ -521,7 +500,6 @@ canvas {
 }
 
 /* ── Level grid ──────────────────────────────────────────────── */
-
 #level-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -537,10 +515,7 @@ canvas {
   border: 1px solid var(--muted);
   background: transparent;
   text-align: left;
-  transition:
-    border-color var(--t-base),
-    background   var(--t-base),
-    color        var(--t-base);
+  transition: all var(--t-base);
 }
 
 .level-cell:hover:not(.locked) {
@@ -558,99 +533,158 @@ canvas {
   cursor: not-allowed;
 }
 
-.lc-num {
-  font-size: 18px;
-  font-weight: 700;
+.lc-num { font-size: 18px; font-weight: 700; font-family: var(--font-display); line-height: 1; }
+.lc-name { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.level-cell:active .lc-name { color: var(--bg); }
+.lc-best { font-size: 12px; font-weight: 700; margin-top: var(--sp-1); }
+
+/* ── Stats list ──────────────────────────────────────────────── */
+.stats-list { display: flex; flex-direction: column; gap: 0; }
+.stats-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: var(--sp-3) 0; border-bottom: 1px solid var(--ghost);
+}
+.stats-label { letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-size: 10px; }
+.stats-val { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; font-family: var(--font-display); }
+
+/* ── Painel de Autenticação (Login) com Animações Robustas ───── */
+.auth-panel {
+  z-index: 500;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg);
+  background-image: radial-gradient(var(--ghost) 2px, transparent 2px);
+  background-size: 20px 20px;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.5s var(--ease);
+}
+
+.login-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  background: var(--surface);
+  padding: var(--sp-6) var(--sp-5);
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 12px 40px rgba(17, 17, 16, 0.08);
+  
+  /* Animação robusta de entrada */
+  opacity: 0;
+  transform: translateY(20px);
+  animation: auth-slide-up 0.7s var(--ease) forwards;
+}
+
+@keyframes auth-slide-up {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-icon-wrapper {
+  margin-bottom: var(--sp-2);
+}
+
+.snake-hero-icon {
+  color: var(--fg);
+  animation: snake-float 3s ease-in-out infinite;
+}
+
+@keyframes snake-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+
+.login-title {
   font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--fg);
+  text-transform: uppercase;
+  text-align: center;
   line-height: 1;
 }
 
-.lc-name {
+.login-sub {
   font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  letter-spacing: 0.05em;
+  padding: 0 var(--sp-2);
 }
 
-.level-cell:active .lc-name { color: var(--bg); }
-
-.lc-best {
-  font-size: 12px;
-  font-weight: 700;
-  margin-top: var(--sp-1);
-}
-
-/* ── Stats list ──────────────────────────────────────────────── */
-
-.stats-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.stats-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: var(--sp-3) 0;
-  border-bottom: 1px solid var(--ghost);
-}
-
-.stats-label {
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.stats-val {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  font-family: var(--font-display);
-}
-/* ── Icon Buttons (Sound) ────────────────────────────────────── */
-.icon-btn {
-  background: transparent;
-  border: 1px solid var(--muted);
-  color: var(--muted);
-  width: 36px;
-  height: 36px;
+.input-group {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all var(--t-base) var(--ease);
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--muted);
+  padding: 0 var(--sp-3);
+  transition: border-color var(--t-base) var(--ease);
 }
 
-.icon-btn:hover {
-  border-color: var(--fg);
+.input-group:focus-within { border-color: var(--fg); }
+.input-group svg { color: var(--muted); transition: color var(--t-base); }
+.input-group:focus-within svg { color: var(--fg); }
+
+#player-id-input {
+  width: 100%;
+  padding: var(--sp-3);
+  background: transparent;
+  border: none;
   color: var(--fg);
-  transform: scale(1.05);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-transform: uppercase;
+  outline: none;
 }
 
-.icon-btn:active {
-  transform: scale(0.95);
+#login-btn {
+  width: 100%;
+  height: 48px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1.5px solid var(--fg);
   background: var(--fg);
   color: var(--bg);
+  font-weight: bold;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  transition: transform var(--t-fast) var(--ease), opacity var(--t-fast);
 }
 
-.icon-btn svg {
-  transition: opacity var(--t-fast) var(--ease);
+#login-btn:active {
+  transform: scale(0.96);
+  opacity: 0.9;
 }
-/* ── Death flash ─────────────────────────────────────────────── */
 
+/* Estado de Loading no Botão */
+.loader-svg {
+  animation: spin-loader 0.8s linear infinite;
+  display: none;
+}
+
+#login-btn.is-loading .btn-text { display: none; }
+#login-btn.is-loading .loader-svg { display: block; }
+#login-btn.is-loading { pointer-events: none; opacity: 0.8; }
+
+@keyframes spin-loader {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Flash e Utilitários ─────────────────────────────────────── */
 @keyframes flash {
   0%, 100% { opacity: 1;   }
   50%      { opacity: 0.2; }
 }
 
-.flash {
-  animation: flash 130ms ease-in-out 2;
-}
+.flash { animation: flash 130ms ease-in-out 2; }
 
 /* ── Responsive ──────────────────────────────────────────────── */
-
 @media (max-height: 700px) {
   #root  { gap: var(--sp-2); padding: var(--sp-2) var(--sp-2); }
   #logo  { font-size: 24px; }
@@ -664,12 +698,10 @@ canvas {
 }
 
 @media (max-width: 400px) {
-  :root {
-    --btn-size:  46px;
-    --max-width: 340px;
-  }
-  #logo    { font-size: 26px; }
+  :root { --btn-size: 46px; --max-width: 340px; }
+  #logo { font-size: 26px; }
   #mode-row .mode-btn { font-size: 8px; padding: var(--sp-2) 1px; }
+  .login-box { padding: var(--sp-5) var(--sp-4); }
 }
 
 @media (min-width: 600px) {

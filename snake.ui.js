@@ -14,6 +14,10 @@ const DOM = (() => {
   const qa = sel => document.querySelectorAll(sel);
   
   return {
+    // Auth Panel
+    loginPanel:     q('login-panel'),
+    playerIdInput:  q('player-id-input'),
+    loginBtn:       q('login-btn'),
     // Header
     logo:           q('logo'),
     scoreLive:      q('score-live'),
@@ -364,6 +368,7 @@ function _bindBus() {
 }
 
 // ── Input: keyboard ───────────────────────────────────────────────
+// ── Input: keyboard ───────────────────────────────────────────────
 function _bindKeyboard() {
   const MAP = {
     ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT',
@@ -388,9 +393,66 @@ function _bindKeyboard() {
       _hideLevelPanel();
       _hideStatsPanel();
     }
+    if (e.key.toLowerCase() === 'r') {
+      e.preventDefault();
+      if (['gameover', 'playing', 'paused'].includes(state.phase)) {
+        _startGame();
+      }
+    }
   });
 }
 
+// ── Lógica de Sessão / Login ──────────────────────────────────────
+function _initAuth() {
+  if (!DOM.loginPanel) return;
+
+  const lastUser = localStorage.getItem(CFG.STORAGE_KEY + 'last_session_id');
+  if (lastUser && DOM.playerIdInput) {
+    DOM.playerIdInput.value = lastUser;
+  }
+
+  const authenticate = async () => {
+    let id = DOM.playerIdInput.value.trim().toUpperCase();
+    if (!id) {
+      const hex = Math.random().toString(16).substring(2, 6).toUpperCase();
+      id = `JOGADOR-${hex}`;
+    }
+
+    DOM.loginBtn.classList.add('is-loading');
+    Store.setPlayerId(id);
+    localStorage.setItem(CFG.STORAGE_KEY + 'last_session_id', id);
+
+    if (window.FirebaseDB) {
+      const cloudData = await window.FirebaseDB.loadProfile(id);
+      if (cloudData) {
+        if (cloudData.best_classic) Store.set('best_classic', cloudData.best_classic);
+        if (cloudData.best_wrap) Store.set('best_wrap', cloudData.best_wrap);
+        if (cloudData.best_speed) Store.set('best_speed', cloudData.best_speed);
+        if (cloudData.best_challenge) Store.set('best_challenge', cloudData.best_challenge);
+        if (cloudData.unlocked) Store.set('unlocked', cloudData.unlocked);
+        if (cloudData.stats) Store.set('stats', cloudData.stats);
+      } else {
+        Store.syncToCloud();
+      }
+    }
+
+    DOM.loginBtn.classList.remove('is-loading');
+    if (DOM.stBest) DOM.stBest.textContent = Store.getBest(_selectedMode);
+    
+    DOM.loginPanel.style.opacity = '0';
+    DOM.loginPanel.style.pointerEvents = 'none';
+    setTimeout(() => DOM.loginPanel.classList.add('hidden'), 400);
+
+    if (typeof MilestoneToast !== 'undefined') {
+      setTimeout(() => MilestoneToast.show(`SESSÃO INICIADA: ${id}`), 500);
+    }
+  };
+
+  DOM.loginBtn.addEventListener('click', authenticate);
+  DOM.playerIdInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') authenticate();
+  });
+}
 // ── Input: touch swipe ────────────────────────────────────────────
 function _bindSwipe() {
   let tx0 = 0, ty0 = 0;
@@ -478,7 +540,53 @@ if (DOM.soundBtn) {
     });
   });
 }
+const authenticate = async () => {
+    let id = DOM.playerIdInput.value.trim().toUpperCase();
+    
+    if (!id) {
+      const hex = Math.random().toString(16).substring(2, 6).toUpperCase();
+      id = `JOGADOR-${hex}`;
+    }
 
+    // Trava o botão e inicia a animação SVG robusta
+    DOM.loginBtn.classList.add('is-loading');
+
+    // Autentica o ID no gerenciador de estado local
+    Store.setPlayerId(id);
+    localStorage.setItem(CFG.STORAGE_KEY + 'last_session_id', id);
+
+    // Consulta o Firebase
+    if (window.FirebaseDB) {
+      const cloudData = await window.FirebaseDB.loadProfile(id);
+      
+      // Se encontrou histórico na nuvem, sobrescreve o cache local
+      if (cloudData) {
+        if (cloudData.best_classic) Store.set('best_classic', cloudData.best_classic);
+        if (cloudData.best_wrap) Store.set('best_wrap', cloudData.best_wrap);
+        if (cloudData.best_speed) Store.set('best_speed', cloudData.best_speed);
+        if (cloudData.best_challenge) Store.set('best_challenge', cloudData.best_challenge);
+        if (cloudData.unlocked) Store.set('unlocked', cloudData.unlocked);
+        if (cloudData.stats) Store.set('stats', cloudData.stats);
+      } else {
+        // Se for um jogador novo, força a primeira criação de perfil na nuvem
+        Store.syncToCloud();
+      }
+    }
+
+    // Desbloqueia o botão e atualiza a interface
+    DOM.loginBtn.classList.remove('is-loading');
+    
+    if (DOM.stBest) DOM.stBest.textContent = Store.getBest(_selectedMode);
+    
+    // Animação de fechamento do painel
+    DOM.loginPanel.style.opacity = '0';
+    DOM.loginPanel.style.pointerEvents = 'none';
+    setTimeout(() => DOM.loginPanel.classList.add('hidden'), 400);
+
+    if (typeof MilestoneToast !== 'undefined') {
+      setTimeout(() => MilestoneToast.show(`SESSÃO INICIADA: ${id}`), 500);
+    }
+  };
 // ── Resize handling ───────────────────────────────────────────────
 function _handleResize() {
   // Canvas is fixed-size; we only need to handle viewport fitting
@@ -487,6 +595,7 @@ function _handleResize() {
 
 // ── Init ──────────────────────────────────────────────────────────
 function UIInit() {
+  _initAuth();
   _bindBus();
   _bindKeyboard();
   _bindSwipe();
