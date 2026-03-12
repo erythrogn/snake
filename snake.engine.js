@@ -56,7 +56,26 @@ const _LEVELUP_PAUSE = 2000; // ms to show level-up screen before continuing
 
 // ── Engine API ───────────────────────────────────────────────────
 const Engine = {
+// ── Init / Start ──────────────────────────────────────────
+  start(mode = 'classic', level = 1) {
+    Engine.stop();
+    Renderer.clearEffects();
 
+    // Adicione esta linha para zerar a fila de setas ao trocar de opção de jogo
+    if (typeof InputBuffer !== 'undefined') InputBuffer.clear();
+
+    state.mode        = mode;
+    state.level       = mode === 'challenge' ? level : 1;
+    state.phase       = 'playing';
+    state.running     = true;
+    state.paused      = false;
+    state.sessionStart= performance.now();
+
+    _initLevel(state.level);
+    _scheduleStep();
+
+    Bus.emit('phaseChange', 'playing');
+  },
   // ── Init / Start ──────────────────────────────────────────
   start(mode = 'classic', level = 1) {
     Engine.stop();
