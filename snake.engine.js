@@ -195,6 +195,9 @@ function _scheduleStep() {
 function _step() {
   if (state.paused || !state.running) return;
 
+  // Flush any buffered direction input
+  if (typeof InputBuffer !== 'undefined') InputBuffer.flush();
+
   state.dir = state.nextDir;
   const modeDef = MODES[state.mode];
   const head    = { ...state.snake[0] };
@@ -829,43 +832,35 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ── Movement input buffer ────────────────────────────────────────
-// Accept up to 2 buffered inputs to prevent dropped directions
-// on fast keypresses between ticks
+// Simple 1-slot buffer: stores the next pending direction.
+// Engine.setDir writes here; _step reads it each tick.
 const InputBuffer = {
-  _queue: [],
-  maxSize: 2,
+  _pending: null,
 
   push(dir) {
-    if (this._queue.length < this.maxSize) {
-      const last = this._queue[this._queue.length - 1] || state.dir;
-      if (dir !== OPPOSITE[last]) {
-        this._queue.push(dir);
-      }
+    // Only accept if not a 180-degree reversal of current direction
+    const current = this._pending || state.dir;
+    if (dir !== OPPOSITE[current]) {
+      this._pending = dir;
     }
   },
 
   flush() {
-    if (this._queue.length > 0) {
-      state.nextDir = this._queue.shift();
+    if (this._pending !== null) {
+      state.nextDir = this._pending;
+      this._pending = null;
     }
   },
 
-  clear() { this._queue.length = 0; },
+  clear() { this._pending = null; },
 };
 
 // Override Engine.setDir to use buffer
-const _origSetDir = Engine.setDir;
 Engine.setDir = function(d) {
   if (!state.running || state.paused) return;
   if (state.phase !== 'playing') return;
   InputBuffer.push(d);
 };
-
-// Flush buffer at start of each step (patch _step)
-const _origStep = _step;
-// Note: _step is a closure — we flush in the engine module scope
-// by hooking into the step start via Bus
-Bus.on('_stepStart', () => InputBuffer.flush());
 
 // ── Debug: expose internals ──────────────────────────────────────
 Engine._internals = {
@@ -876,7 +871,72 @@ Engine._internals = {
   calcSpeed,
   formatScore,
 };
+// ═══════════════════════════════════════════════════════════════
+//  MOBILE OPTIMIZATION — Gestos e Segundo Plano
+// ═══════════════════════════════════════════════════════════════
 
+const MobileManager = {
+  startX: 0,
+  startY: 0,
+  threshold: 30, // Distância mínima em pixels para considerar um "swipe" válido
+
+  init() {
+    // Escuta o início do toque na tela
+    // { passive: true } melhora a performance em navegadores mobile
+    window.addEventListener('touchstart', (e) => {
+      this.startX = e.changedTouches[0].screenX;
+      this.startY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    // Escuta o fim do toque na tela e calcula a direção
+    window.addEventListener('touchend', (e) => {
+      const endX = e.changedTouches[0].screenX;
+      const endY = e.changedTouches[0].screenY;
+      this.handleSwipe(this.startX, this.startY, endX, endY);
+    }, { passive: true });
+
+    // Previne que os gestos deem zoom acidental ou arrastem a tela (Double-tap to zoom)
+    // Nota: É recomendado adicionar touch-action: none; no CSS do seu canvas também.
+    document.addEventListener('touchmove', (e) => {
+      if (state.running && !state.paused && state.phase === 'playing') {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // Auto-Pause: Essencial para mobile. 
+    // Pausa o jogo se o usuário trocar de aba ou minimizar o navegador.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.running && !state.paused) {
+        Engine.pause();
+      }
+    });
+  },
+
+  handleSwipe(startX, startY, endX, endY) {
+    // Ignora swipes se o jogo não estiver rolando
+    if (!state.running || state.paused || state.phase !== 'playing') return;
+
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+
+    // Compara os eixos para saber se o movimento foi mais horizontal ou vertical
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Eixo X (Horizontal)
+      if (Math.abs(deltaX) > this.threshold) {
+        // Envia direto para o InputBuffer criado na engine estendida
+        InputBuffer.push(deltaX > 0 ? 'RIGHT' : 'LEFT');
+      }
+    } else {
+      // Eixo Y (Vertical)
+      if (Math.abs(deltaY) > this.threshold) {
+        InputBuffer.push(deltaY > 0 ? 'DOWN' : 'UP');
+      }
+    }
+  }
+};
+
+// Inicializa o gerenciador mobile
+MobileManager.init();
 // ── end of snake.engine.js (extended) ─────────────────────────────
 
 // ── Expose engine globals ─────────────────────────────────────────
