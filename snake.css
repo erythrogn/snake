@@ -1,20 +1,21 @@
-/* ═══════════════════════════════════════════════════
-   SNAKE — Design System
-   ═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   SNAKE — Stylesheet
+   Robust, minimal, B&W — all UI elements
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Design tokens ───────────────────────────────────────────── */
 
 :root {
-  /* Palette */
-  --bg:      #f4f1ec;
-  --fg:      #111110;
-  --muted:   #a8a49d;
-  --border:  #111110;
-  --ghost:   rgba(17, 17, 16, 0.05);
+  --bg:        #f4f1ec;
+  --fg:        #111110;
+  --muted:     #a8a49d;
+  --border:    #111110;
+  --ghost:     rgba(17, 17, 16, 0.05);
+  --surface:   #edeae4;
 
-  /* Typography */
   --font-mono:    'Space Mono', 'Courier New', monospace;
   --font-display: 'DM Serif Display', Georgia, serif;
 
-  /* Spacing scale */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -22,18 +23,17 @@
   --sp-5: 20px;
   --sp-6: 24px;
 
-  /* Component sizes */
   --btn-size:  52px;
-  --max-width: 360px;
+  --max-width: 380px;
   --border-w:  1.5px;
 
-  /* Motion */
   --ease:   cubic-bezier(0.16, 1, 0.3, 1);
   --t-fast: 80ms;
   --t-base: 150ms;
+  --t-slow: 300ms;
 }
 
-/* ── Reset ─────────────────────────────────────────── */
+/* ── Reset ───────────────────────────────────────────────────── */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -60,9 +60,10 @@ button {
   font-size: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* ── Layout ─────────────────────────────────────────── */
+/* ── Layout root ─────────────────────────────────────────────── */
 
 #root {
   display: flex;
@@ -70,11 +71,11 @@ button {
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  padding: var(--sp-4) var(--sp-3);
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
   gap: var(--sp-3);
 }
 
-/* ── Header ─────────────────────────────────────────── */
+/* ── Header ──────────────────────────────────────────────────── */
 
 #hdr {
   width: 100%;
@@ -108,7 +109,7 @@ button {
   line-height: 1;
 }
 
-/* ── Stats bar ──────────────────────────────────────── */
+/* ── Stats bar ───────────────────────────────────────────────── */
 
 #stats {
   width: 100%;
@@ -140,21 +141,33 @@ button {
   transition: color var(--t-base) var(--ease);
 }
 
-/* ── Mode selector ──────────────────────────────────── */
+/* Combo color states */
+.stat-val[data-level="mid"] { color: #444; }
+.stat-val[data-level="high"] {
+  color: var(--fg);
+  animation: combo-pulse 0.4s var(--ease);
+}
+
+@keyframes combo-pulse {
+  0%   { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ── Mode selector ───────────────────────────────────────────── */
 
 #mode-row {
   width: 100%;
   max-width: var(--max-width);
   display: flex;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
 }
 
 .mode-btn {
   flex: 1;
-  padding: var(--sp-2) var(--sp-1);
+  padding: var(--sp-2) 2px;
   border: 1px solid var(--muted);
   background: transparent;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
   transition:
@@ -163,7 +176,7 @@ button {
     color        var(--t-base) var(--ease);
 }
 
-.mode-btn:hover:not(.active) {
+.mode-btn:hover:not(.active):not(:disabled) {
   border-color: var(--fg);
   color: var(--fg);
 }
@@ -174,7 +187,34 @@ button {
   color: var(--bg);
 }
 
-/* ── Arena ──────────────────────────────────────────── */
+/* ── Level info bar ──────────────────────────────────────────── */
+
+#level-bar {
+  width: 100%;
+  max-width: var(--max-width);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+#level-label {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+#level-prog-wrap {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+/* ── Arena ───────────────────────────────────────────────────── */
 
 #arena {
   position: relative;
@@ -188,7 +228,7 @@ canvas {
   display: block;
 }
 
-/* ── Overlay ─────────────────────────────────────────── */
+/* ── Main overlay ────────────────────────────────────────────── */
 
 #overlay {
   position: absolute;
@@ -199,6 +239,7 @@ canvas {
   justify-content: center;
   background: var(--bg);
   gap: var(--sp-1);
+  transition: opacity var(--t-slow) var(--ease);
 }
 
 #overlay.hidden {
@@ -209,6 +250,7 @@ canvas {
   letter-spacing: 0.25em;
   text-transform: uppercase;
   color: var(--muted);
+  font-size: 10px;
 }
 
 #ov-score {
@@ -220,7 +262,7 @@ canvas {
 }
 
 #ov-sub {
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
   margin-top: var(--sp-1);
@@ -232,15 +274,35 @@ canvas {
   margin-top: var(--sp-1);
 }
 
-#ov-best b {
+#ov-best b { color: var(--fg); font-weight: 700; }
+
+#ov-level-badge {
+  margin-top: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--fg);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
   color: var(--fg);
-  font-weight: 700;
 }
 
-/* ── Primary button ─────────────────────────────────── */
+/* Overlay phase variants */
+#overlay[data-phase="gameover"] #ov-label {
+  color: var(--fg);
+  letter-spacing: 0.2em;
+}
+#overlay[data-phase="levelup"] #ov-score {
+  font-size: 52px;
+}
+#overlay[data-phase="win"] #ov-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  color: var(--fg);
+}
 
+/* Primary button */
 #play-btn {
-  margin-top: var(--sp-4);
+  margin-top: var(--sp-5);
   padding: var(--sp-3) var(--sp-6);
   border: var(--border-w) solid var(--fg);
   background: transparent;
@@ -259,7 +321,29 @@ canvas {
   outline: none;
 }
 
-/* ── Combo popup ─────────────────────────────────────── */
+/* Overlay secondary actions */
+#overlay-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+#overlay-actions button {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--muted);
+  background: transparent;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: border-color var(--t-base), color var(--t-base);
+}
+
+#overlay-actions button:hover {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+
+/* ── Combo popup ─────────────────────────────────────────────── */
 
 #combo-popup {
   position: absolute;
@@ -276,17 +360,18 @@ canvas {
 }
 
 #combo-popup.pop {
-  animation: combo-pop 600ms var(--ease) forwards;
+  animation: combo-pop 650ms var(--ease) forwards;
 }
 
 @keyframes combo-pop {
-  0%   { opacity: 1; transform: scale(0.5); }
-  40%  { opacity: 1; transform: scale(1.05); }
-  65%  { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(0.92) translateY(-12px); }
+  0%   { opacity: 1; transform: scale(0.45); }
+  35%  { opacity: 1; transform: scale(1.08); }
+  60%  { opacity: 1; transform: scale(0.98); }
+  80%  { opacity: 0.9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9) translateY(-16px); }
 }
 
-/* ── Power-up bar ────────────────────────────────────── */
+/* ── Power-up bar ────────────────────────────────────────────── */
 
 #pw-bar {
   width: 100%;
@@ -303,7 +388,47 @@ canvas {
   transition: width 100ms linear;
 }
 
-/* ── D-Pad ───────────────────────────────────────────── */
+/* Powerup kind tints (still B&W but different patterns) */
+#pw-bar[data-kind="slow"]   #pw-fill { background: var(--fg); }
+#pw-bar[data-kind="ghost"]  #pw-fill { background: var(--muted); }
+#pw-bar[data-kind="magnet"] #pw-fill { background: var(--fg); }
+#pw-bar[data-kind="x2"]     #pw-fill {
+  background: var(--fg);
+  animation: bar-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes bar-pulse {
+  from { opacity: 0.5; }
+  to   { opacity: 1; }
+}
+
+/* ── Timer bar ───────────────────────────────────────────────── */
+
+#timer-bar {
+  width: 100%;
+  max-width: var(--max-width);
+  height: 2px;
+  background: var(--ghost);
+  overflow: hidden;
+}
+
+#timer-fill {
+  height: 100%;
+  background: var(--fg);
+  width: 100%;
+  transition: width 100ms linear;
+}
+
+#timer-fill[data-urgent="true"] {
+  animation: timer-urgent 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes timer-urgent {
+  from { opacity: 0.4; }
+  to   { opacity: 1; }
+}
+
+/* ── D-Pad ───────────────────────────────────────────────────── */
 
 #dpad {
   display: grid;
@@ -338,37 +463,187 @@ canvas {
 .dpad-d  { grid-column: 2; grid-row: 2; }
 .dpad-r  { grid-column: 3; grid-row: 2; }
 
-/* ── Footer ──────────────────────────────────────────── */
+/* ── Footer hint ─────────────────────────────────────────────── */
 
 #foot {
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
+  text-align: center;
 }
 
-/* ── Death flash ─────────────────────────────────────── */
+/* ── Floating panels ─────────────────────────────────────────── */
+
+.panel {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--sp-4);
+  gap: var(--sp-3);
+  z-index: 100;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.panel.hidden {
+  display: none;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.panel-header button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--fg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.panel-header button:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* ── Level grid ──────────────────────────────────────────────── */
+
+#level-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2);
+}
+
+.level-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--muted);
+  background: transparent;
+  text-align: left;
+  transition:
+    border-color var(--t-base),
+    background   var(--t-base),
+    color        var(--t-base);
+}
+
+.level-cell:hover:not(.locked) {
+  border-color: var(--fg);
+  background: var(--surface);
+}
+
+.level-cell:active:not(.locked) {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.level-cell.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.lc-num {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.lc-name {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.level-cell:active .lc-name { color: var(--bg); }
+
+.lc-best {
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: var(--sp-1);
+}
+
+/* ── Stats list ──────────────────────────────────────────────── */
+
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--ghost);
+}
+
+.stats-label {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.stats-val {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+}
+
+/* ── Death flash ─────────────────────────────────────────────── */
 
 @keyframes flash {
-  0%, 100% { opacity: 1;    }
-  50%      { opacity: 0.2;  }
+  0%, 100% { opacity: 1;   }
+  50%      { opacity: 0.2; }
 }
 
 .flash {
-  animation: flash 120ms ease-in-out 2;
+  animation: flash 130ms ease-in-out 2;
 }
 
-/* ── Responsive ──────────────────────────────────────── */
+/* ── Responsive ──────────────────────────────────────────────── */
 
-@media (max-height: 680px) {
-  #root { gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); }
-  #logo { font-size: 24px; }
-  #foot { display: none; }
+@media (max-height: 700px) {
+  #root  { gap: var(--sp-2); padding: var(--sp-2) var(--sp-2); }
+  #logo  { font-size: 24px; }
+  #foot  { display: none; }
+  #level-bar { display: none !important; }
 }
 
-@media (max-width: 380px) {
+@media (max-height: 600px) {
+  #hdr   { display: none; }
+  #stats { display: none; }
+}
+
+@media (max-width: 400px) {
   :root {
     --btn-size:  46px;
-    --max-width: 320px;
+    --max-width: 340px;
   }
-  #logo { font-size: 26px; }
+  #logo    { font-size: 26px; }
+  #mode-row .mode-btn { font-size: 8px; padding: var(--sp-2) 1px; }
+}
+
+@media (min-width: 600px) {
+  :root { --btn-size: 56px; }
 }
