@@ -1,5 +1,12 @@
 {
-  "dependencies": {
-    "firebase": "^12.10.0"
-  }
+  "name": "snake-dimen6",
+  "version": "3.0.0",
+  "description": "Snake Dimen6 — ES Modules, Firebase ranking, 6 powerups",
+  "scripts": {
+    "dev": "npx serve ."
+  },
+  "devDependencies": {
+    "serve": "^14.0.0"
+  },
+  "notes": "Firebase SDK carregado via CDN (gstatic). Sem bundler necessário."
 }
