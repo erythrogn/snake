@@ -681,3 +681,227 @@ svg { display: block; width: 100%; height: 100%; }
   80%  { opacity: 1; transform: translateY(-12px); }
   100% { opacity: 0; transform: translateY(-18px); }
 }
+
+/* ── Right column ─────────────────────────────────────────────── */
+#right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 160px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+/* ── Skin panel ──────────────────────────────────────────────── */
+#skin-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  font-size: 10px;
+  background: var(--bg);
+}
+
+.skin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+.skin-header:hover { color: var(--fg); }
+
+#skin-toggle {
+  width: 14px;
+  height: 14px;
+  opacity: 0.5;
+  transition: transform 0.25s cubic-bezier(.4,0,.2,1), opacity 0.15s;
+  flex-shrink: 0;
+}
+#skin-toggle:hover { opacity: 1; }
+#skin-toggle.open  { transform: rotate(180deg); }
+
+#skin-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+#skin-body.hidden { display: none; }
+
+#skin-preview {
+  display: block;
+  width: 100%;
+  height: 52px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--bg);
+}
+
+.skin-section-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── Grade de cores ──────────────────────────────────────────── */
+#color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+.color-swatch {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--sw, #111);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  will-change: transform;
+}
+.color-swatch:hover  { transform: scale(1.18); box-shadow: 0 0 0 1px var(--border); }
+.color-swatch.active { border-color: var(--fg); transform: scale(1.12); box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+
+/* ── Carrossel de skins ──────────────────────────────────────── */
+#skin-grid-wrap {
+  overflow: hidden;
+  position: relative;
+}
+#skin-grid {
+  display: flex;
+  gap: 4px;
+  will-change: transform;
+}
+
+.skin-card {
+  flex: 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 3px 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: center;
+  will-change: transform;
+  background: var(--bg);
+}
+.skin-card canvas  { width: 44px; height: 44px; display: block; }
+.skin-card span    { font-size: 8px; font-family: var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); line-height: 1.2; }
+.skin-card small   { font-size: 7px; color: var(--muted); opacity: 0.7; display: none; } /* desc hidden no carrossel */
+.skin-card:hover   { border-color: var(--fg); background: var(--surface); }
+.skin-card:hover span { color: var(--fg); }
+.skin-card.active  { border-color: var(--fg); background: var(--surface); }
+.skin-card.active span { color: var(--fg); font-weight: 700; }
+
+/* ── Nav do carrossel ────────────────────────────────────────── */
+.carousel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 2px;
+}
+.carousel-arrow {
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  will-change: transform;
+  flex-shrink: 0;
+}
+.carousel-arrow:hover { color: var(--fg); border-color: var(--fg); background: var(--surface); }
+
+.carousel-dots {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+.carousel-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s, transform 0.2s;
+  cursor: pointer;
+}
+.carousel-dot.active {
+  background: var(--fg);
+  transform: scale(1.4);
+}
+
+/* ── Forced event (fora do mapa, coluna direita) ─────────────── */
+#forced-event {
+  border: 1px solid #ff6b35;
+  border-radius: var(--r);
+  background: rgba(17,17,16,0.04);
+  padding: 10px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: none;
+  pointer-events: none;
+}
+#forced-event.show {
+  animation: fe-in 3.5s ease forwards;
+}
+@keyframes fe-in {
+  0%   { opacity:0; transform:translateY(6px); }
+  10%  { opacity:1; transform:translateY(0); }
+  80%  { opacity:1; }
+  100% { opacity:0; transform:translateY(-4px); }
+}
+.fe-icon {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff6b35;
+  line-height: 1;
+}
+.fe-text {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+/* ── Nick do jogador colorido no ranking ─────────────────────── */
+.rank-row.rank-me .rank-nick {
+  font-weight: 700;
+}
+
+/* ── Responsivo: right-col vira row no mobile ────────────────── */
+@media (max-width: 700px) {
+  #right-col {
+    flex-direction: row;
+    width: 100%;
+    max-width: 360px;
+    flex-wrap: wrap;
+  }
+  #side-rank  { width: 100%; }
+  #skin-panel { flex: 1; min-width: 140px; }
+  #forced-event { flex: 1; min-width: 120px; }
+}

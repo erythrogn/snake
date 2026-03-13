@@ -73,6 +73,7 @@ export const Engine={
     state.phase='playing'; state.running=true; state.paused=false;
     state.sessionStart=performance.now();
     state.portalScoreTriggered=false; state.wrapOverride=false;
+    DynamicWalls.reset();
     _initLevel(state.level); _scheduleStep();
     Bus.emit('phaseChange','playing');
   },
@@ -96,18 +97,88 @@ export const Engine={
   getSessionStats:()=>SessionStats.summary(),
 };
 
+function _findSafeSpawn(walls){
+  const W=CFG.COLS, H=CFG.ROWS;
+  const wallSet=new Set(walls.map(w=>`${w.x},${w.y}`));
+  const blocked=(x,y)=>x<0||x>=W||y<0||y>=H||wallSet.has(`${x},${y}`);
+
+  // Para cada direção candidata, verifica se a cobra tem pelo menos RUN_MIN
+  // células livres à frente antes de bater em parede/borda
+  const RUN_MIN=6; // blocos livres à frente que a cobra precisa ter ao nascer
+  const DIRS=[
+    {dir:'RIGHT', dx:1, dy:0, tx:-1, ty:0}, // cabeça em x, cauda em x-1,x-2
+    {dir:'LEFT',  dx:-1,dy:0, tx:1,  ty:0},
+    {dir:'DOWN',  dx:0, dy:1, tx:0,  ty:-1},
+    {dir:'UP',    dx:0, dy:-1,tx:0,  ty:1},
+  ];
+
+  function runLength(hx,hy,ddx,ddy){
+    let n=0;
+    for(let k=1;k<W;k++){
+      if(blocked(hx+ddx*k,hy+ddy*k))break;
+      n++;
+    }
+    return n;
+  }
+
+  // Candidatos: todas as células livres que cabem os 3 segmentos do corpo
+  // e têm RUN_MIN livres à frente
+  const candidates=[];
+  for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+    for(const {dir,dx,dy,tx,ty} of DIRS){
+      // 3 segmentos: cabeça(x,y), corpo(x+tx,y+ty), cauda(x+tx*2,y+ty*2)
+      if(blocked(x,y)||blocked(x+tx,y+ty)||blocked(x+tx*2,y+ty*2))continue;
+      const run=runLength(x,y,dx,dy);
+      if(run>=RUN_MIN) candidates.push({x,y,dir,run});
+    }
+  }
+
+  if(candidates.length===0){
+    // Segunda tentativa: RUN_MIN=3
+    for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++){
+      for(const {dir,dx,dy,tx,ty} of DIRS){
+        if(blocked(x,y)||blocked(x+tx,y+ty)||blocked(x+tx*2,y+ty*2))continue;
+        const run=runLength(x,y,dx,dy);
+        if(run>=3) candidates.push({x,y,dir,run});
+      }
+    }
+  }
+
+  if(candidates.length===0) return {x:Math.floor(W/2),y:Math.floor(H/2),dir:'RIGHT'};
+
+  // Prefere candidatos próximos ao centro com mais run
+  const cx=Math.floor(W/2),cy=Math.floor(H/2);
+  candidates.sort((a,b)=>{
+    const da=Math.abs(a.x-cx)+Math.abs(a.y-cy);
+    const db=Math.abs(b.x-cx)+Math.abs(b.y-cy);
+    // Prioridade: run longo > centro
+    return (b.run - a.run)*0.5 + (da - db)*0.5;
+  });
+  return candidates[0];
+}
+
 function _initLevel(levelNum){
   WallAnimator.clear();
   const isChallenge=state.mode==='challenge';
   const levelDef=isChallenge?LEVELS[levelNum-1]:null;
   const modeDef=MODES[state.mode];
-  const cx=Math.floor(CFG.COLS/2),cy=Math.floor(CFG.ROWS/2);
-  state.snake=[{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
-  state.dir='RIGHT'; state.nextDir='RIGHT';
+  // Calcula paredes primeiro para encontrar spawn segura
+  const rawWalls=levelDef?[...levelDef.walls]:[];
+  const spawn=_findSafeSpawn(rawWalls);
+  const cx=spawn.x, cy=spawn.y;
+  const spawnDir=spawn.dir||'RIGHT';
+  // Corpo atrás da cabeça conforme direção
+  const bodyOff={RIGHT:{dx:-1,dy:0},LEFT:{dx:1,dy:0},DOWN:{dx:0,dy:-1},UP:{dx:0,dy:1}}[spawnDir];
+  state.snake=[
+    {x:cx,y:cy},
+    {x:cx+bodyOff.dx,y:cy+bodyOff.dy},
+    {x:cx+bodyOff.dx*2,y:cy+bodyOff.dy*2}
+  ];
+  state.dir=spawnDir; state.nextDir=spawnDir;
   if(levelNum===1||!isChallenge){state.score=0;state.streak=0;state.combo=1;}
   state.levelEaten=0; state.foods=[]; state.powerup=null; _clearPowerup();
   state.wrapOverride=false;
-  state.walls=levelDef?[...levelDef.walls]:[];
+  state.walls=rawWalls;
   const spawnSet=new Set(state.snake.map(s=>`${s.x},${s.y}`));
   state.walls=state.walls.filter(w=>!spawnSet.has(`${w.x},${w.y}`));
   _currentSpeed=levelDef?.speedOverride??modeDef.baseSpeed;
@@ -168,6 +239,9 @@ function _step(){
 
   if(state.pwActive)_tickPowerup();
   _maintainFoodQueue();
+
+  // Paredes dinâmicas pós-1000pts (todos os modos exceto challenge)
+  if(state.mode!=='challenge') DynamicWalls.check(state.score);
 
   // Gatilho: 500 pts no clássico → força slow_shrink uma única vez
   if(state.mode==='classic'&&!state.portalScoreTriggered&&state.score>=CFG.PORTAL_MODE_SCORE){
@@ -308,6 +382,97 @@ function _tickPowerup(){
 }
 
 function _clearPowerup(){state.pwActive=false;state.pwKind=null;state.pwTimer=0;state.pwDuration=0;state.wrapOverride=false;}
+
+// ── Paredes dinâmicas pós-1000 pts ───────────────────────────────
+const DynamicWalls = {
+  _walls: [],
+  _nextThreshold: 1000,
+  _TTL: 10000,
+
+  reset() {
+    this._walls = [];
+    this._nextThreshold = 1000;
+    Bus.emit('dynWallsReset');
+  },
+
+  _SHAPES: [
+    (ax,ay)=>[{x:ax,y:ay},{x:ax+1,y:ay},{x:ax+2,y:ay}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax,y:ay+1},{x:ax,y:ay+2}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax+1,y:ay},{x:ax+2,y:ay},{x:ax+3,y:ay}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax,y:ay+1},{x:ax,y:ay+2},{x:ax,y:ay+3}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax+1,y:ay},{x:ax+1,y:ay+1},{x:ax+1,y:ay+2}],
+    (ax,ay)=>[{x:ax+1,y:ay},{x:ax,y:ay},{x:ax,y:ay+1},{x:ax,y:ay+2}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax+1,y:ay},{x:ax+2,y:ay},{x:ax+1,y:ay+1}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax,y:ay+1},{x:ax,y:ay+2},{x:ax+1,y:ay+1}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax+1,y:ay},{x:ax,y:ay+1},{x:ax+1,y:ay+1}],
+    (ax,ay)=>[{x:ax+1,y:ay},{x:ax+2,y:ay},{x:ax,y:ay+1},{x:ax+1,y:ay+1}],
+    (ax,ay)=>[{x:ax,y:ay},{x:ax+1,y:ay},{x:ax+1,y:ay+1},{x:ax+2,y:ay+1}],
+    (ax,ay)=>[{x:ax+1,y:ay},{x:ax,y:ay+1},{x:ax+1,y:ay+1},{x:ax+2,y:ay+1},{x:ax+1,y:ay+2}],
+  ],
+
+  _cellFree(cells, snakeSet, foodSet, wallSet) {
+    return cells.every(c =>
+      c.x > 0 && c.x < CFG.COLS-1 && c.y > 0 && c.y < CFG.ROWS-1 &&
+      !snakeSet.has(`${c.x},${c.y}`) &&
+      !foodSet.has(`${c.x},${c.y}`) &&
+      !wallSet.has(`${c.x},${c.y}`)
+    );
+  },
+
+  _notBlockingPath(cells, head, dir) {
+    if (!head) return true;
+    const v = DIR_VECTORS[dir];
+    const front = new Set();
+    for (let k = 1; k <= 4; k++) {
+      front.add(`${((head.x+v.dx*k)+CFG.COLS)%CFG.COLS},${((head.y+v.dy*k)+CFG.ROWS)%CFG.ROWS}`);
+    }
+    return cells.filter(c => front.has(`${c.x},${c.y}`)).length < 2;
+  },
+
+  spawn() {
+    const snakeSet = new Set(state.snake.map(s=>`${s.x},${s.y}`));
+    const foodSet  = new Set(state.foods.map(f=>`${f.x},${f.y}`));
+    const wallSet  = new Set(state.walls.map(w=>`${w.x},${w.y}`));
+    this._walls.forEach(dw=>dw.cells.forEach(c=>wallSet.add(`${c.x},${c.y}`)));
+
+    const shapeIdx = MathUtil.randInt(0, this._SHAPES.length-1);
+    const shapeFn  = this._SHAPES[shapeIdx];
+
+    for (let attempt=0; attempt<40; attempt++) {
+      const ax = MathUtil.randInt(1, CFG.COLS-5);
+      const ay = MathUtil.randInt(1, CFG.ROWS-5);
+      const cells = shapeFn(ax, ay);
+      if (
+        this._cellFree(cells, snakeSet, foodSet, wallSet) &&
+        this._notBlockingPath(cells, state.snake[0], state.dir)
+      ) {
+        const dw = { cells, born: Date.now(), ttl: this._TTL, shapeIdx };
+        this._walls.push(dw);
+        cells.forEach(c => state.walls.push({...c, _dynamic:true, _born: dw.born, _ttl: dw.ttl}));
+        Bus.emit('dynWallSpawned', { cells, ttl: this._TTL });
+        return true;
+      }
+    }
+    return false;
+  },
+
+  tick() {
+    const now = Date.now();
+    const expired = this._walls.filter(dw=>(now-dw.born)>=dw.ttl);
+    if (!expired.length) return;
+    expired.forEach(dw => {
+      const cellSet = new Set(dw.cells.map(c=>`${c.x},${c.y}`));
+      state.walls = state.walls.filter(w=>!cellSet.has(`${w.x},${w.y}`)||!w._dynamic);
+      Bus.emit('dynWallExpired', {cells: dw.cells});
+    });
+    this._walls = this._walls.filter(dw=>(now-dw.born)<dw.ttl);
+  },
+
+  check(score) {
+    if (score >= this._nextThreshold) { this._nextThreshold += 1000; this.spawn(); }
+    this.tick();
+  },
+};
 
 function _applyMagnet(head){
   if(!state.foods.length)return;

@@ -48,6 +48,17 @@ const D = {
   levelProgress:   document.getElementById('level-progress'),
   levelTarget:     document.getElementById('level-target'),
   dpadBtns:        document.querySelectorAll('.dpad-btn'),
+  // Skin panel
+  skinPanel:       document.getElementById('skin-panel'),
+  skinToggle:      document.getElementById('skin-toggle'),
+  skinBody:        document.getElementById('skin-body'),
+  skinPreview:     document.getElementById('skin-preview'),
+  colorGrid:       document.getElementById('color-grid'),
+  skinGrid:        document.getElementById('skin-grid'),
+  // Forced event (fora do mapa)
+  forcedEvent:     document.getElementById('forced-event'),
+  forcedText:      document.querySelector('#forced-event .fe-text'),
+  forcedIcon:      document.querySelector('#forced-event .fe-icon'),
 };
 
 let _selectedMode  = 'classic';
@@ -181,9 +192,10 @@ const RankPanel = {
       const nick  = div.textContent; // XSS-safe via textContent
       const score = r.best_classic || 0;
       const isMe  = r.id === currentId;
-      return `<div class="rank-row${isMe ? ' rank-me' : ''}">
+      const nickColor = isMe ? SnakeSkin.getColor().body : '';
+      return `<div class="rank-row${isMe ? ' rank-me' : ''}" style="${isMe && nickColor ? '--nick-color:'+nickColor : ''}">
         <span class="rank-pos">${icons[i] || (i + 1)}</span>
-        <span class="rank-nick">${nick.replace(/</g,'&lt;')}</span>
+        <span class="rank-nick"${isMe && nickColor ? ` style="color:${nickColor}"` : ''}>${nick.replace(/</g,'&lt;')}</span>
         <span class="rank-score">${score}</span>
       </div>`;
     }).join('');
@@ -418,14 +430,17 @@ function _bindBus() {
     D.arena?.classList.remove('portal-active');
   });
 
-  // Powerup forçado (500pts)
+  // Powerup forçado (500pts) — aparece à direita fora do mapa
   Bus.on('forcedPowerup', ({message}) => {
     if (!D.forcedEvent) return;
-    D.forcedEvent.innerHTML = message || 'PODER ESPECIAL!';
-    D.forcedEvent.classList.remove('show');
+    if (D.forcedText) D.forcedText.textContent = message || '500 PTS — SLOW + REDUÇÃO';
+    D.forcedEvent.classList.remove('hidden', 'show');
     void D.forcedEvent.offsetWidth;
     D.forcedEvent.classList.add('show');
-    // Flash no score
+    setTimeout(() => {
+      D.forcedEvent.classList.remove('show');
+      D.forcedEvent.classList.add('hidden');
+    }, 3500);
     D.scoreLive?.classList.add('milestone');
     setTimeout(() => D.scoreLive?.classList.remove('milestone'), 400);
   });
@@ -461,6 +476,238 @@ function _bindBus() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────
+// ── Rank nick colorido ───────────────────────────────────────────
+function _updateNickColor() {
+  const color = SnakeSkin.getColor();
+  document.documentElement.style.setProperty('--nick-color', color.body);
+}
+
+// ── Skin Panel com carrossel GSAP ────────────────────────────────
+function _initSkinPanel() {
+  if (!D.colorGrid || !D.skinGrid) return;
+
+  // ── Preview animado ──────────────────────────────────────────
+  let _previewCtx = D.skinPreview ? D.skinPreview.getContext('2d') : null;
+  let _previewAnim = null;
+
+  function _drawPreview(now) {
+    if (!_previewCtx) return;
+    const pw = D.skinPreview.width, ph = D.skinPreview.height;
+    _previewCtx.clearRect(0, 0, pw, ph);
+    _previewCtx.fillStyle = CFG.BG;
+    _previewCtx.fillRect(0, 0, pw, ph);
+    const skin  = SnakeSkin.getSkin();
+    const color = SnakeSkin.getColor();
+    const c = 18;
+    const segs = 8;
+    for (let i = segs - 1; i >= 0; i--) {
+      _previewCtx.save();
+      const x = 12 + i * (c + 2) + c / 2;
+      const y = ph / 2 + Math.sin((now * 0.002) + i * 0.5) * 4;
+      _previewCtx.translate(x, y);
+      if (i === 0) skin.drawHead(_previewCtx, c, 'RIGHT', color);
+      else         skin.drawBody(_previewCtx, c, i, color);
+      _previewCtx.restore();
+    }
+    _previewAnim = requestAnimationFrame(_drawPreview);
+  }
+
+  function _startPreview() {
+    cancelAnimationFrame(_previewAnim);
+    _previewAnim = requestAnimationFrame(_drawPreview);
+  }
+  function _stopPreview() {
+    cancelAnimationFrame(_previewAnim);
+  }
+
+  // Começa preview se painel estiver aberto
+  if (!D.skinBody?.classList.contains('hidden')) _startPreview();
+
+  // ── Cores ────────────────────────────────────────────────────
+  SNAKE_COLORS.forEach(col => {
+    const btn = document.createElement('button');
+    btn.className = 'color-swatch' + (col.id === SnakeSkin.getColorId() ? ' active' : '');
+    btn.title = col.label;
+    btn.style.setProperty('--sw', col.body);
+    btn.setAttribute('aria-label', col.label);
+    btn.addEventListener('click', () => {
+      SnakeSkin.setColor(col.id);
+      D.colorGrid.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _updateNickColor();
+      _refreshRankColors();
+      _refreshSkinMinis();
+      if (typeof gsap !== 'undefined') {
+        gsap.fromTo(btn, {scale:0.7}, {scale:1, duration:0.35, ease:'back.out(2)'});
+      }
+    });
+    D.colorGrid.appendChild(btn);
+  });
+
+  // ── Skins — carrossel ────────────────────────────────────────
+  // Injeta GSAP se necessário (via CDN)
+  function _ensureGSAP(cb) {
+    if (typeof gsap !== 'undefined') { cb(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
+
+  const COLS = 3; // 3 skins por "página"
+  let _currentPage = 0;
+  const PAGES = Math.ceil(SNAKE_SKINS.length / COLS);
+
+  // Gera cards de skin
+  const skinCards = SNAKE_SKINS.map((sk, idx) => {
+    const card = document.createElement('div');
+    card.className = 'skin-card' + (sk.id === SnakeSkin.getSkinId() ? ' active' : '');
+    card.dataset.idx = idx;
+
+    const mc = document.createElement('canvas');
+    mc.width = 44; mc.height = 44;
+    card.appendChild(mc);
+
+    const lbl = document.createElement('span');
+    lbl.textContent = sk.label;
+    card.appendChild(lbl);
+
+    const desc = document.createElement('small');
+    desc.textContent = sk.desc;
+    card.appendChild(desc);
+
+    card.addEventListener('click', () => {
+      SnakeSkin.setSkin(sk.id);
+      skinCards.forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      _ensureGSAP(() => gsap.fromTo(card, {scale:0.88}, {scale:1, duration:0.4, ease:'elastic.out(1, 0.5)'}));
+    });
+
+    D.skinGrid.appendChild(card);
+    return { card, mc, sk };
+  });
+
+  function _renderSkinMini(mc, sk) {
+    const mctx = mc.getContext('2d');
+    mctx.clearRect(0,0,mc.width,mc.height);
+    mctx.fillStyle = CFG.BG; mctx.fillRect(0,0,mc.width,mc.height);
+    mctx.save(); mctx.translate(mc.width/2, mc.height/2);
+    sk.drawHead(mctx, 28, 'RIGHT', SnakeSkin.getColor());
+    mctx.restore();
+  }
+
+  function _refreshSkinMinis() {
+    skinCards.forEach(({mc,sk}) => _renderSkinMini(mc, sk));
+  }
+  _refreshSkinMinis();
+
+  // ── Navegação do carrossel ───────────────────────────────────
+  function _goToPage(page, animated = true) {
+    _currentPage = Math.max(0, Math.min(page, PAGES - 1));
+    const offset = -_currentPage * COLS;
+    _ensureGSAP(() => {
+      const track = D.skinGrid;
+      if (!track) return;
+      // Move o grid via transform
+      const colW = 56; // largura de cada card + gap
+      const x = offset * colW;
+      if (animated) {
+        gsap.to(track, { x, duration: 0.4, ease: 'power2.out' });
+      } else {
+        gsap.set(track, { x });
+      }
+      // Atualiza dots
+      document.querySelectorAll('.carousel-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === _currentPage);
+      });
+    });
+  }
+
+  // Botões prev/next e dots
+  const nav = document.createElement('div');
+  nav.className = 'carousel-nav';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.className = 'carousel-arrow';
+  prevBtn.innerHTML = '‹';
+  prevBtn.addEventListener('click', () => {
+    _goToPage(_currentPage - 1);
+    _ensureGSAP(() => gsap.fromTo(prevBtn, {scale:0.8},{scale:1,duration:0.25,ease:'back.out(2)'}));
+  });
+
+  const dotsWrap = document.createElement('div');
+  dotsWrap.className = 'carousel-dots';
+  for (let p = 0; p < PAGES; p++) {
+    const dot = document.createElement('button');
+    dot.className = 'carousel-dot' + (p === 0 ? ' active' : '');
+    dot.addEventListener('click', () => _goToPage(p));
+    dotsWrap.appendChild(dot);
+  }
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'carousel-arrow';
+  nextBtn.innerHTML = '›';
+  nextBtn.addEventListener('click', () => {
+    _goToPage(_currentPage + 1);
+    _ensureGSAP(() => gsap.fromTo(nextBtn, {scale:0.8},{scale:1,duration:0.25,ease:'back.out(2)'}));
+  });
+
+  nav.appendChild(prevBtn);
+  nav.appendChild(dotsWrap);
+  nav.appendChild(nextBtn);
+  D.skinGrid.after(nav);
+
+  // Swipe no grid
+  let _swipeX = 0;
+  D.skinGrid.addEventListener('touchstart', e => { _swipeX = e.touches[0].clientX; }, {passive:true});
+  D.skinGrid.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - _swipeX;
+    if (Math.abs(dx) > 30) _goToPage(_currentPage + (dx < 0 ? 1 : -1));
+  }, {passive:true});
+
+  // ── Toggle expand/collapse ───────────────────────────────────
+  function _openPanel() {
+    D.skinBody?.classList.remove('hidden');
+    D.skinToggle?.classList.add('open');
+    _startPreview();
+    _ensureGSAP(() => {
+      gsap.fromTo(D.skinBody, {opacity:0,y:-8},{opacity:1,y:0,duration:0.3,ease:'power2.out'});
+    });
+  }
+  function _closePanel() {
+    _ensureGSAP(() => {
+      gsap.to(D.skinBody, {opacity:0,y:-6,duration:0.2,ease:'power2.in', onComplete:()=>{
+        D.skinBody?.classList.add('hidden');
+        D.skinToggle?.classList.remove('open');
+        _stopPreview();
+      }});
+    });
+  }
+
+  D.skinToggle?.addEventListener('click', () => {
+    const isOpen = !D.skinBody?.classList.contains('hidden');
+    if (isOpen) _closePanel(); else _openPanel();
+  });
+  // Clique no header também abre
+  D.skinPanel?.querySelector('.skin-header')?.addEventListener('click', (e) => {
+    if (e.target === D.skinToggle || D.skinToggle?.contains(e.target)) return;
+    const isOpen = !D.skinBody?.classList.contains('hidden');
+    if (isOpen) _closePanel(); else _openPanel();
+  });
+
+  // Reage a mudanças de skin/cor
+  Bus.on('skinChanged', () => {
+    _refreshSkinMinis();
+  });
+}
+
+function _refreshRankColors() {
+  const color = SnakeSkin.getColor();
+  document.querySelectorAll('.rank-row.rank-me .rank-nick').forEach(el => {
+    el.style.color = color.body;
+  });
+}
+
 export function UIInit() {
   _initAuth();
   _bindBus();
@@ -469,6 +716,8 @@ export function UIInit() {
   _bindDpad();
   _bindButtons();
   _showMenu();
+  _initSkinPanel();
+  _updateNickColor();
 }
 
 // Exposição global (para console debug e callbacks inline de HTML)

@@ -14,7 +14,7 @@
 
   <div id="root">
 
-    <!-- ── Coluna do jogo ────────────────────────────────── -->
+    <!-- ── Coluna do jogo ────────────────────────────── -->
     <div id="game-col">
 
       <header id="hdr">
@@ -61,7 +61,6 @@
       <div id="arena">
         <canvas id="c"></canvas>
         <div id="combo-popup"></div>
-        <div id="forced-event"></div>
 
         <div id="overlay" data-phase="menu">
           <span id="ov-label">snake</span>
@@ -97,24 +96,59 @@
 
     </div><!-- /game-col -->
 
-    <!-- ── Ranking lateral ──────────────────────────────── -->
-    <aside id="side-rank" class="hidden">
-      <div class="rank-header">
-        <span>operadores</span>
-        <button id="rank-refresh-side" aria-label="Atualizar ranking">
-          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5">
-            <polyline points="23 4 23 10 17 10"/>
-            <polyline points="1 20 1 14 7 14"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
-        </button>
+    <!-- ── Coluna direita (rank + aparência + eventos) ── -->
+    <div id="right-col" style="width:180px">
+
+      <!-- Ranking -->
+      <aside id="side-rank" class="hidden">
+        <div class="rank-header">
+          <span>operadores</span>
+          <button id="rank-refresh-side" aria-label="Atualizar ranking">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5">
+              <polyline points="23 4 23 10 17 10"/>
+              <polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </button>
+        </div>
+        <div id="rank-list-side" class="rank-list"></div>
+      </aside>
+
+      <!-- Aparência da cobra -->
+      <div id="skin-panel">
+        <div class="skin-header">
+          <span>aparência</span>
+          <button id="skin-toggle" class="icon-btn" aria-label="Expandir">
+            <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+        <div id="skin-body" class="hidden">
+          <!-- Preview da cobra -->
+          <canvas id="skin-preview" width="160" height="52"></canvas>
+          <!-- Cores -->
+          <div class="skin-section-label">cor</div>
+          <div id="color-grid"></div>
+          <!-- Skins -->
+          <div class="skin-section-label">forma</div>
+          <div id="skin-grid-wrap">
+            <div id="skin-grid"></div>
+          </div>
+        </div>
       </div>
-      <div id="rank-list-side" class="rank-list"></div>
-    </aside>
+
+      <!-- Aviso de evento forçado (500pts) — fora do mapa -->
+      <div id="forced-event" class="hidden">
+        <div class="fe-icon">½S</div>
+        <div class="fe-text"></div>
+      </div>
+
+    </div><!-- /right-col -->
 
   </div><!-- /root -->
 
-  <!-- ── Login ──────────────────────────────────────────── -->
+  <!-- ── Login ────────────────────────────────────────── -->
   <div id="login-panel" class="panel auth-panel">
     <div class="login-box">
       <span class="login-title">snake dimen6</span>
@@ -134,7 +168,7 @@
     </div>
   </div>
 
-  <!-- ── Painel de fases ────────────────────────────────── -->
+  <!-- ── Painel de fases ──────────────────────────────── -->
   <div id="level-panel" class="panel hidden">
     <div class="panel-header">
       <span>modo desafio</span>
@@ -145,7 +179,7 @@
     <div id="level-grid"></div>
   </div>
 
-  <!-- ── Painel de stats ────────────────────────────────── -->
+  <!-- ── Painel de stats ──────────────────────────────── -->
   <div id="stats-panel" class="panel hidden">
     <div class="panel-header">
       <span>estatísticas</span>

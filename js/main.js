@@ -6,6 +6,7 @@ import { store } from './core/store.js';
 import { Engine, state, SessionStats } from './core/engine.js';
 import { Renderer } from './renderer/renderer.js';
 import { UIInit } from './ui/ui.js';
+import { SnakeSkin, SNAKE_SKINS, SNAKE_COLORS } from './core/snake-skin.js';
 import './services/firebase-service.js';  // registra window.FirebaseDB
 import './services/audio-service.js';     // registra window.SoundBus
 
@@ -14,8 +15,9 @@ import './services/audio-service.js';     // registra window.SoundBus
 Object.assign(window, {
   CFG, MODES, LEVELS, FOOD_TYPES, POWERUP_TYPES,
   Ease, Color, MathUtil, Bus,
-  Store: store,   // ui.js usa Store.getBest() etc.
+  Store: store,
   Engine, state,
+  SnakeSkin, SNAKE_SKINS, SNAKE_COLORS,
 });
 
 // ── Boot ─────────────────────────────────────────────────────────
