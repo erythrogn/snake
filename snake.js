@@ -367,7 +367,10 @@ const PerfMonitor = {
 
 // Toggle perf monitor with F key
 document.addEventListener('keydown', e => {
+
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+
   if (e.key === 'f' || e.key === 'F') {
     if (!e.ctrlKey && !e.metaKey) PerfMonitor.toggle();
   }

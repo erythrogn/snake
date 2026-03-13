@@ -212,49 +212,83 @@
     measurementId: "G-3CEKSTMQJK"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-  window.FirebaseDB = {
-    async loadProfile(playerId) {
-      try {
-        const docSnap = await getDoc(doc(db, "dimen6_players", playerId));
-        return docSnap.exists() ? docSnap.data() : null;
-      } catch (e) {
-        console.error("Erro ao ler do Firebase:", e);
-        return null;
+    window.FirebaseDB = {
+      async loadProfile(playerId) {
+        try {
+          const docSnap = await getDoc(doc(db, "dimen6_players", playerId));
+          return docSnap.exists() ? docSnap.data() : null;
+        } catch (e) {
+          console.error("Erro ao ler do Firebase:", e);
+          return null;
+        }
+      },
+      async saveProfile(playerId, data) {
+        try {
+          await setDoc(doc(db, "dimen6_players", playerId), data, { merge: true });
+          console.info("[Firebase] Perfil salvo:", playerId, data);
+        } catch (e) {
+          console.error("Erro ao salvar no Firebase:", e);
+        }
+      },
+      async loadRanking(topCount = 5) {
+        try {
+          const rankRef = collection(db, "dimen6_players");
+          const q = query(rankRef, orderBy("best_classic", "desc"), limit(topCount));
+          const querySnapshot = await getDocs(q);
+          const rank = [];
+          querySnapshot.forEach((d) => {
+            rank.push({ id: d.id, ...d.data() });
+          });
+          console.info("[Firebase] Ranking carregado:", rank);
+          return rank;
+        } catch (e) {
+          console.error("Erro ao carregar ranking:", e);
+          return [];
+        }
       }
-    },
-    async saveProfile(playerId, data) {
-      try {
-        await setDoc(doc(db, "dimen6_players", playerId), data, { merge: true });
-      } catch (e) {
-        console.error("Erro ao salvar no Firebase:", e);
-      }
-    },
-    async loadRanking(topCount = 5) {
-      try {
-        const rankRef = collection(db, "dimen6_players");
-        const q = query(rankRef, orderBy("best_classic", "desc"), limit(topCount));
-        const querySnapshot = await getDocs(q);
-        
-        const rank = [];
-        querySnapshot.forEach((doc) => {
-          rank.push({ id: doc.id, ...doc.data() });
-        });
-        return rank;
-      } catch (e) {
-        console.error("Erro ao carregar ranking:", e);
-        return [];
-      }
-    }
-  };
+    };
+  } catch(e) {
+    console.warn("[Firebase] Falha ao inicializar:", e);
+    window.FirebaseDB = null;
+  }
+
+  // Avisa os scripts do jogo que o Firebase está pronto
+  document.dispatchEvent(new Event('firebase-ready'));
 </script>
 
-<script src="snake.config.js"></script>
-<script src="snake.renderer.js"></script>
-<script src="snake.engine.js"></script>
-<script src="snake.ui.js"></script>
-<script src="snake.js"></script>
+<script>
+  // Aguarda Firebase antes de carregar os módulos do jogo
+  function _loadGameScripts() {
+    const scripts = [
+      'snake.config.js',
+      'snake.renderer.js',
+      'snake.engine.js',
+      'snake.ui.js',
+      'snake.js'
+    ];
+    scripts.reduce((promise, src) => {
+      return promise.then(() => new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.body.appendChild(s);
+      }));
+    }, Promise.resolve());
+  }
+
+  document.addEventListener('firebase-ready', _loadGameScripts, { once: true });
+  // Fallback: carrega mesmo sem Firebase após 3s
+  setTimeout(() => {
+    if (!document.querySelector('script[src="snake.config.js"]')) {
+      console.warn('[Snake] Firebase timeout — carregando sem Firebase.');
+      _loadGameScripts();
+    }
+  }, 3000);
+</script>
 </body>
 </html>
