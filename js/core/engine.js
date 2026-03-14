@@ -13,8 +13,12 @@ export const state = {
   timeLeft:null, walls:[],
   running:false, paused:false, phase:'menu', sessionStart:0,
   // Extras dinâmicos
-  wrapOverride:false,   // true quando portal_mode ativo no clássico
-  portalScoreTriggered:false, // garante que o forced powerup só dispara 1x
+  wrapOverride:false,
+  portalScoreTriggered:false,
+  _nextSlowShrink:500,
+  shieldActive:false,   // absorve 1 colisão fatal
+  freezeActive:false,   // comidas não expiram/movem
+  dashActive:false,     // velocidade dobrada
 };
 
 let _gameLoop=null, _timerInterval=null, _eatTimestamp=0, _currentSpeed=145;
@@ -73,6 +77,8 @@ export const Engine={
     state.phase='playing'; state.running=true; state.paused=false;
     state.sessionStart=performance.now();
     state.portalScoreTriggered=false; state.wrapOverride=false;
+    state.shieldActive=false; state.freezeActive=false; state.dashActive=false;
+    state._nextSlowShrink=CFG.PORTAL_MODE_SCORE;
     DynamicWalls.reset();
     _initLevel(state.level); _scheduleStep();
     Bus.emit('phaseChange','playing');
@@ -211,16 +217,23 @@ function _step(){
     head.y=(head.y+CFG.ROWS)%CFG.ROWS;
   }else{
     if(head.x<0||head.x>=CFG.COLS||head.y<0||head.y>=CFG.ROWS){
-      SessionStats.setDeathCause('wall');return _doGameOver();
+      if(state.shieldActive){
+        state.shieldActive=false; Bus.emit('shieldBroken');
+        head.x=Math.max(0,Math.min(CFG.COLS-1,head.x));
+        head.y=Math.max(0,Math.min(CFG.ROWS-1,head.y));
+        state.snake.pop(); // evita crescimento por não ter comido
+      } else { SessionStats.setDeathCause('wall');return _doGameOver(); }
     }
   }
 
   if(state.walls.some(w=>w.x===head.x&&w.y===head.y)){
+    if(state.shieldActive){ state.shieldActive=false; Bus.emit('shieldBroken'); state.snake.pop(); Bus.emit('stateUpdate',state); return; }
     SessionStats.setDeathCause('obstacle');return _doGameOver();
   }
 
   const ghostActive=state.pwActive&&state.pwKind==='ghost';
   if(!ghostActive&&state.snake.some(s=>s.x===head.x&&s.y===head.y)){
+    if(state.shieldActive){ state.shieldActive=false; Bus.emit('shieldBroken'); state.snake.pop(); Bus.emit('stateUpdate',state); return; }
     SessionStats.setDeathCause('self');return _doGameOver();
   }
 
@@ -231,7 +244,7 @@ function _step(){
   if(state.powerup&&head.x===state.powerup.x&&head.y===state.powerup.y){
     _activatePowerup(state.powerup); state.powerup=null;
   }
-  if(state.pwActive&&state.pwKind==='magnet')_applyMagnet(head);
+  if(state.pwActive&&state.pwKind==='magnet'&&!state.freezeActive)_applyMagnet(head);
 
   const fi=state.foods.findIndex(f=>f.x===head.x&&f.y===head.y);
   if(fi!==-1){const food=state.foods[fi];state.foods.splice(fi,1);_onFoodEaten(food);}
@@ -243,9 +256,9 @@ function _step(){
   // Paredes dinâmicas pós-1000pts (todos os modos exceto challenge)
   if(state.mode!=='challenge') DynamicWalls.check(state.score);
 
-  // Gatilho: 500 pts no clássico → força slow_shrink uma única vez
-  if(state.mode==='classic'&&!state.portalScoreTriggered&&state.score>=CFG.PORTAL_MODE_SCORE){
-    state.portalScoreTriggered=true;
+  // Gatilho: a cada 500 pts no clássico → aplica slow_shrink
+  if(state.mode==='classic'&&state.score>=state._nextSlowShrink){
+    state._nextSlowShrink=(state._nextSlowShrink||CFG.PORTAL_MODE_SCORE)+CFG.PORTAL_MODE_SCORE;
     _forceSlowShrink();
   }
 
@@ -272,11 +285,11 @@ function _forceSlowShrink(){
 function _onFoodEaten(food){
   const now=Date.now(),elapsed=now-_eatTimestamp; _eatTimestamp=now;
   if(_eatTimestamp>0&&elapsed<CFG.COMBO_WINDOW)state.combo=Math.min(state.combo+1,CFG.COMBO_MAX);
-  else state.combo=Math.max(1,state.combo-1);
+  else state.combo=1;
   state.streak++; state.levelEaten++; _checkStreak(state.streak);
 
-  const x2=state.pwActive&&state.pwKind==='x2';
-  const pts=food.pts*state.combo*(x2?2:1);
+  const mult=(state.pwActive&&state.pwKind==='x3')?3:(state.pwActive&&state.pwKind==='x2')?2:1;
+  const pts=food.pts*state.combo*mult;
   state.score+=pts;
 
   if(window._Renderer){window._Renderer.onEat(food,state.combo);if(state.combo>=3&&window._Renderer.onCombo)window._Renderer.onCombo(state.combo);}
@@ -336,7 +349,10 @@ function _placeFood(){
 
 function _maintainFoodQueue(){
   const now=Date.now();
-  state.foods=state.foods.filter(f=>f.ttl===null||f._spawnTime===null||(now-f._spawnTime)<f.ttl);
+  // freeze: comidas não expiram
+  if(!state.freezeActive)
+    state.foods=state.foods.filter(f=>f.ttl===null||f._spawnTime===null||(now-f._spawnTime)<f.ttl);
+  else state.foods.forEach(f=>{if(f._spawnTime)f._spawnTime=now;});// freeze: reseta clock de expiração
   while(state.foods.length<2)_placeFood();
   if(state.foods.length<3&&state.score>10&&Math.random()<0.4)_placeFood();
 }
@@ -359,24 +375,36 @@ function _activatePowerup(pw){
   }
   _clearPowerup();
   state.pwActive=true; state.pwKind=pw.kind; state.pwDuration=pw.duration; state.pwTimer=pw.duration;
-  if(pw.kind==='slow'){_currentSpeed=Math.min(CFG.SPEED_MAX,_currentSpeed+45);_scheduleStep();}
+  _pwLastTick=Date.now();
+  if(pw.kind==='slow')  {_currentSpeed=Math.min(CFG.SPEED_MAX,_currentSpeed+50);_scheduleStep();}
+  if(pw.kind==='dash')  {state.dashActive=true;_currentSpeed=Math.max(CFG.SPEED_MIN,_currentSpeed/2);_scheduleStep();}
   if(pw.kind==='portal_mode'){state.wrapOverride=true;Bus.emit('portalModeStart');}
+  if(pw.kind==='shield'){state.shieldActive=true;Bus.emit('shieldStart');}
+  if(pw.kind==='freeze'){state.freezeActive=true;Bus.emit('freezeStart');}
+  if(pw.kind==='x3')    {}
   if(window._Renderer)window._Renderer.onPowerup(pw.kind);
   Bus.emit('powerupStart',{kind:pw.kind,duration:pw.duration});
 }
 
+let _pwLastTick=0;
 function _tickPowerup(){
-  state.pwTimer-=_currentSpeed;
-  Bus.emit('powerupTick',{timer:state.pwTimer,duration:state.pwDuration});
+  const now=Date.now();
+  const elapsed=_pwLastTick>0?Math.min(now-_pwLastTick,500):_currentSpeed;
+  _pwLastTick=now;
+  state.pwTimer-=elapsed;
+  Bus.emit('powerupTick',{timer:Math.max(0,state.pwTimer),duration:state.pwDuration});
   if(state.pwTimer<=0){
     const wasKind=state.pwKind; _clearPowerup();
-    if(wasKind==='slow'||wasKind==='portal_mode'){
+    if(wasKind==='slow'||wasKind==='portal_mode'||wasKind==='dash'){
       const modeDef=MODES[state.mode];const levelDef=LEVELS[state.level-1];
       const base=levelDef?.speedOverride??modeDef.baseSpeed;
       _currentSpeed=MathUtil.clamp(base-state.snake.length*modeDef.speedUp,CFG.SPEED_MIN,CFG.SPEED_MAX);
       _scheduleStep();
     }
     if(wasKind==='portal_mode'){state.wrapOverride=false;Bus.emit('portalModeEnd');}
+    if(wasKind==='dash'){state.dashActive=false;}
+    if(wasKind==='freeze'){state.freezeActive=false;Bus.emit('freezeEnd');}
+    if(wasKind==='shield'){state.shieldActive=false;}
     Bus.emit('powerupEnd',{kind:wasKind});
   }
 }

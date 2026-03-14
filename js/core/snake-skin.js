@@ -393,6 +393,179 @@ export const SNAKE_SKINS = Object.freeze([
     },
   },
 
+  ,
+  // 17 ── Cobra (escamada realista)
+  {
+    id:'snake_skin', label:'Cobra', desc:'Escamas realistas em gradiente',
+    drawHead(ctx,c,dir,col){
+      const r=c/2-1;
+      // Corpo base elíptico
+      ctx.fillStyle=col.body;ctx.beginPath();ctx.ellipse(0,0,r,r*.9,0,0,TAU);ctx.fill();
+      // Padrão de escamas no corpo
+      const g=ctx.createLinearGradient(-r,0,r,0);
+      g.addColorStop(0,col.body);g.addColorStop(0.5,col.accent);g.addColorStop(1,col.body);
+      ctx.fillStyle=g;ctx.globalAlpha*=0.4;ctx.beginPath();ctx.ellipse(0,0,r*.7,r*.6,0,0,TAU);ctx.fill();ctx.globalAlpha/=0.4;
+      // Língua bífida
+      const da={RIGHT:r,LEFT:-r,DOWN:0,UP:0}[dir]||r;
+      const db={RIGHT:0,LEFT:0,DOWN:r,UP:-r}[dir]||0;
+      ctx.strokeStyle='#e63950';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(da*.8,db*.8);ctx.lineTo(da*1.2+db*.3,db*1.2+da*.3);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(da*.8,db*.8);ctx.lineTo(da*1.2-db*.3,db*1.2-da*.3);ctx.stroke();
+      _eyePair(ctx,col,dir,r*.2,r*.38);
+    },
+    drawBody(ctx,c,i,col){
+      const r=Math.max(3,c/2-1.5-i*.025);
+      // Escamas alternadas
+      const g=ctx.createLinearGradient(-r,0,r,0);
+      g.addColorStop(0,col.body);g.addColorStop(0.5,col.accent);g.addColorStop(1,col.body);
+      ctx.fillStyle=i%2===0?col.body:g;
+      ctx.beginPath();ctx.ellipse(0,0,r*.9,r,0,0,TAU);ctx.fill();
+      // Detalhe ventral
+      ctx.fillStyle=col.accent;ctx.globalAlpha*=0.25;
+      ctx.beginPath();ctx.ellipse(0,r*.2,r*.35,r*.3,0,0,TAU);ctx.fill();ctx.globalAlpha/=0.25;
+    },
+  },
+
+  // 18 ── Fogo (chamas animadas)
+  {
+    id:'fire', label:'Fogo', desc:'Chamas vivas e pulsantes',
+    drawHead(ctx,c,dir,col){
+      const r=c/2-1;const t=Date.now()*.003;
+      ctx.fillStyle=col.body||'#dc2626';
+      ctx.beginPath();
+      for(let a=0;a<TAU;a+=.15){
+        const flame=r+Math.sin(a*5+t)*2.5+Math.cos(a*3-t*1.5)*1.5;
+        a<.01?ctx.moveTo(Math.cos(a)*flame,Math.sin(a)*flame):ctx.lineTo(Math.cos(a)*flame,Math.sin(a)*flame);
+      }
+      ctx.closePath();ctx.fill();
+      // Núcleo mais claro
+      const g=ctx.createRadialGradient(0,0,0,0,0,r*.6);
+      g.addColorStop(0,'rgba(255,220,50,0.7)');g.addColorStop(1,'rgba(255,100,0,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*.6,0,TAU);ctx.fill();
+      ctx.fillStyle=col.eye||'#fff';_eye(ctx,-r*.28,-r*.2,2);_eye(ctx,r*.28,-r*.2,2);
+    },
+    drawBody(ctx,c,i,col){
+      const r=Math.max(3,c/2-1.5-i*.03);const t=Date.now()*.003;
+      const g=ctx.createRadialGradient(0,0,0,0,0,r);
+      g.addColorStop(0,'rgba(255,200,0,0.8)');g.addColorStop(0.5,col.body||'#dc2626');g.addColorStop(1,'rgba(50,0,0,0.6)');
+      ctx.fillStyle=g;ctx.beginPath();
+      for(let a=0;a<TAU;a+=.2){
+        const fl=r+Math.sin(a*4+t+i*.5)*1.8;
+        a<.01?ctx.moveTo(Math.cos(a)*fl,Math.sin(a)*fl):ctx.lineTo(Math.cos(a)*fl,Math.sin(a)*fl);
+      }
+      ctx.closePath();ctx.fill();
+    },
+  },
+
+  // 19 ── Gelo (cristais facetados e frios)
+  {
+    id:'ice', label:'Gelo', desc:'Cristais de gelo frios e afiados',
+    drawHead(ctx,c,dir,col){
+      const r=c/2-1;
+      // Base hexagonal gelada
+      ctx.fillStyle=col.body;_hexPath(ctx,r);ctx.fill();
+      // Veios de gelo
+      ctx.strokeStyle='rgba(255,255,255,0.6)';ctx.lineWidth=0.8;
+      [0,60,120].forEach(deg=>{
+        const a=deg*Math.PI/180;
+        ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);ctx.stroke();
+      });
+      // Faceta brilhante
+      ctx.fillStyle='rgba(255,255,255,0.35)';
+      ctx.beginPath();ctx.moveTo(0,-r);ctx.lineTo(r*.5,-r*.3);ctx.lineTo(0,0);ctx.closePath();ctx.fill();
+      ctx.fillStyle=col.eye;_eye(ctx,-r*.28,-r*.1,2);_eye(ctx,r*.28,-r*.1,2);
+    },
+    drawBody(ctx,c,i,col){
+      const r=Math.max(3,c/2-1.5-i*.03);
+      ctx.fillStyle=col.body;ctx.save();ctx.rotate(i*Math.PI/3);_hexPath(ctx,r);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.4)';ctx.lineWidth=0.7;
+      ctx.beginPath();ctx.moveTo(0,-r*.5);ctx.lineTo(0,r*.5);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-r*.4,r*.25);ctx.lineTo(r*.4,-r*.25);ctx.stroke();
+      ctx.restore();
+    },
+  },
+
+  // 20 ── Elétrica (raios e energia)
+  {
+    id:'electric', label:'Elétrica', desc:'Raios de energia pulsantes',
+    drawHead(ctx,c,dir,col){
+      const r=c/2-1;const t=Date.now()*.005;
+      if(col.glow){ctx.shadowBlur=18;ctx.shadowColor=col.glow||'#fde68a';}
+      ctx.fillStyle=col.body;_roundRect(ctx,-r,-r,r*2,r*2,3);ctx.fill();
+      ctx.shadowBlur=0;
+      // Raios elétricos
+      ctx.strokeStyle=col.accent||'#fde68a';ctx.lineWidth=1.2;
+      for(let k=0;k<3;k++){
+        const angle=k*Math.PI*2/3+t;
+        ctx.beginPath();ctx.moveTo(0,0);
+        let px=0,py=0;
+        for(let s=0;s<4;s++){
+          px+=Math.cos(angle+Math.sin(t+s)*1.2)*r*.3;
+          py+=Math.sin(angle+Math.cos(t+s)*1.2)*r*.3;
+          ctx.lineTo(px,py);
+        }
+        ctx.stroke();
+      }
+      ctx.fillStyle=col.eye;_eye(ctx,-r*.3,-r*.2,2);_eye(ctx,r*.3,-r*.2,2);
+    },
+    drawBody(ctx,c,i,col){
+      const s=Math.max(5,c-3-i*.04);const t=Date.now()*.005;
+      if(col.glow&&i<3){ctx.shadowBlur=10-i*3;ctx.shadowColor=col.glow||'#fde68a';}
+      ctx.fillStyle=col.body;_roundRect(ctx,-s/2,-s/2,s,s,2);ctx.fill();ctx.shadowBlur=0;
+      if(i%2===0){
+        ctx.strokeStyle=col.accent||'#fde68a';ctx.lineWidth=0.8;
+        ctx.beginPath();ctx.moveTo(-s*.3,Math.sin(t+i)*s*.3);ctx.lineTo(s*.3,-Math.sin(t+i)*s*.3);ctx.stroke();
+      }
+    },
+  },
+
+  // 21 ── Sombra (escura, borrões de fumaça)
+  {
+    id:'shadow', label:'Sombra', desc:'Rastro de sombra e fumaça',
+    drawHead(ctx,c,dir,col){
+      const r=c/2-1;
+      // Aura de sombra
+      const g=ctx.createRadialGradient(0,0,r*.2,0,0,r*1.3);
+      g.addColorStop(0,col.body);g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*1.3,0,TAU);ctx.fill();
+      // Corpo sólido
+      ctx.fillStyle=col.body;ctx.beginPath();ctx.arc(0,0,r*.85,0,TAU);ctx.fill();
+      // Olhos brilhantes
+      if(col.glow){ctx.shadowBlur=8;ctx.shadowColor=col.glow;}
+      ctx.fillStyle=col.eye;_eye(ctx,-r*.3,-r*.15,2.5);_eye(ctx,r*.3,-r*.15,2.5);
+      ctx.shadowBlur=0;
+    },
+    drawBody(ctx,c,i,col){
+      const r=Math.max(2,c/2-1.5-i*.035);const prev=ctx.globalAlpha;
+      // Fumaça ao redor
+      const g=ctx.createRadialGradient(0,0,0,0,0,r*1.2);
+      g.addColorStop(0,col.body);g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha=prev*(0.6-i*.03);ctx.fillStyle=g;
+      ctx.beginPath();ctx.arc(0,0,r*1.2,0,TAU);ctx.fill();
+      ctx.globalAlpha=prev;ctx.fillStyle=col.body;
+      ctx.beginPath();ctx.arc(0,0,r*.75,0,TAU);ctx.fill();
+    },
+  },
+
+  // 22 ── Arco-íris (gradiente que percorre o corpo)
+  {
+    id:'rainbow', label:'Arco-Íris', desc:'Cores que percorrem o corpo',
+    _hue(i){ return (Date.now()*.05 + i*25) % 360; },
+    drawHead(ctx,c,dir,col){
+      const r=c/2-1;const hue=this._hue(0);
+      ctx.fillStyle=`hsl(${hue},80%,50%)`;
+      ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fill();
+      // Highlight
+      ctx.fillStyle='rgba(255,255,255,0.3)';ctx.beginPath();ctx.arc(-r*.25,-r*.25,r*.45,0,TAU);ctx.fill();
+      ctx.fillStyle='rgba(0,0,0,0.8)';_eye(ctx,-r*.32,-r*.15,2.2);_eye(ctx,r*.32,-r*.15,2.2);
+    },
+    drawBody(ctx,c,i,col){
+      const r=Math.max(3,c/2-1.5-i*.03);const hue=this._hue(i);
+      ctx.fillStyle=`hsl(${hue},75%,50%)`;
+      ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fill();
+    },
+  },
+
 ]);
 
 class SkinManager {

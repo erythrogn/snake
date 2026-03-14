@@ -8,5 +8,8 @@
   "devDependencies": {
     "serve": "^14.0.0"
   },
-  "notes": "Firebase SDK carregado via CDN (gstatic). Sem bundler necessário."
+  "notes": "Firebase SDK carregado via CDN (gstatic). Sem bundler necessário.",
+  "dependencies": {
+    "esbuild": "^0.27.4"
+  }
 }

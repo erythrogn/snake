@@ -18,24 +18,29 @@ export const MODES = Object.freeze({
 });
 
 export const FOOD_TYPES = Object.freeze([
-  { type:'cherry',    weight:30, pts:2,  shape:'cherry',    r:4, ttl:null,  trail:false, label:'Cereja',    color:'#e63950' },
-  { type:'apple',     weight:25, pts:5,  shape:'apple',     r:5, ttl:null,  trail:false, label:'Maçã',      color:'#34c759' },
-  { type:'cake',      weight:15, pts:10, shape:'cake',      r:5, ttl:9000,  trail:false, label:'Bolo',      color:'#ff9f0a' },
-  { type:'grape',     weight:10, pts:20, shape:'grape',     r:5, ttl:7000,  trail:true,  label:'Uva',       color:'#9b59b6' },
-  { type:'chocolate', weight:12, pts:3,  shape:'chocolate', r:4, ttl:null,  trail:false, label:'Chocolate', color:'#7c4a1e' },
-  { type:'mouse',     weight:4,  pts:35, shape:'mouse',     r:6, ttl:5000,  trail:true,  label:'Ratinho',   color:'#b0a09a' },
-  { type:'human',     weight:4,  pts:25, shape:'human',     r:6, ttl:6000,  trail:true,  label:'Humano',    color:'#ffcc00' },
+  { type:'cherry',    weight:30, pts:20,  shape:'cherry',    r:4, ttl:null,  trail:false, label:'Cereja',    color:'#e63950' },
+  { type:'apple',     weight:25, pts:50,  shape:'apple',     r:5, ttl:null,  trail:false, label:'Maçã',      color:'#34c759' },
+  { type:'cake',      weight:15, pts:100, shape:'cake',      r:5, ttl:9000,  trail:false, label:'Bolo',      color:'#ff9f0a' },
+  { type:'grape',     weight:10, pts:200, shape:'grape',     r:5, ttl:7000,  trail:true,  label:'Uva',       color:'#9b59b6' },
+  { type:'chocolate', weight:12, pts:30,  shape:'chocolate', r:4, ttl:null,  trail:false, label:'Chocolate', color:'#7c4a1e' },
+  { type:'mouse',     weight:4,  pts:350, shape:'mouse',     r:6, ttl:5000,  trail:true,  label:'Ratinho',   color:'#b0a09a' },
+  { type:'human',     weight:4,  pts:250, shape:'human',     r:6, ttl:6000,  trail:true,  label:'Humano',    color:'#ffcc00' },
 ]);
 
 export const POWERUP_TYPES = Object.freeze([
-  { kind:'slow',        label:'S',   duration:7000,  desc:'Reduz velocidade por 7s',       color:'#5e5ce6' },
-  { kind:'ghost',       label:'G',   duration:5000,  desc:'Atravessa o próprio corpo',      color:'#bf5af2' },
-  { kind:'magnet',      label:'M',   duration:6000,  desc:'Atrai comida próxima',           color:'#ff9f0a' },
-  { kind:'x2',          label:'×2',  duration:8000,  desc:'Dobra pontos por 8s',            color:'#ff2d55' },
-  { kind:'shrink',      label:'><',  duration:0,     desc:'Reduz o corpo pela metade',      color:'#30b0c0' },
-  { kind:'time_warp',   label:'T',   duration:0,     desc:'+15s no timer',                  color:'#ff6482' },
-  { kind:'portal_mode', label:'⬡',   duration:20000, desc:'Atravessa paredes por 20s',      color:'#00d2ff' },
-  { kind:'slow_shrink', label:'½S',  duration:0,     desc:'Slow + metade do corpo [500pts]',color:'#ff6b35', forced:true },
+  { kind:'slow',        label:'S',   duration:7000,  desc:'Reduz velocidade por 7s',        color:'#5e5ce6' },
+  { kind:'ghost',       label:'G',   duration:5000,  desc:'Atravessa o próprio corpo',       color:'#bf5af2' },
+  { kind:'magnet',      label:'M',   duration:6000,  desc:'Atrai comida próxima',            color:'#ff9f0a' },
+  { kind:'x2',          label:'×2',  duration:8000,  desc:'Dobra pontos por 8s',             color:'#ff2d55' },
+  { kind:'shrink',      label:'><',  duration:0,     desc:'Reduz o corpo pela metade',       color:'#30b0c0' },
+  { kind:'time_warp',   label:'T',   duration:0,     desc:'+15s no timer',                   color:'#ff6482' },
+  { kind:'portal_mode', label:'⬡',   duration:20000, desc:'Atravessa paredes por 20s',       color:'#00d2ff' },
+  { kind:'slow_shrink', label:'½S',  duration:0,     desc:'Slow + metade do corpo [500pts]', color:'#ff6b35', forced:true },
+  // ── 4 novos poderes ──────────────────────────────────────────
+  { kind:'freeze',      label:'❄',   duration:4000,  desc:'Comidas ficam paradas 4s',        color:'#7dd3fc' },
+  { kind:'shield',      label:'🛡',   duration:6000,  desc:'Ignora 1 colisão fatal',          color:'#fde68a' },
+  { kind:'x3',          label:'×3',  duration:5000,  desc:'Triplo de pontos por 5s',         color:'#f43f5e' },
+  { kind:'dash',        label:'▶▶',  duration:3000,  desc:'Velocidade 2× por 3s',            color:'#34d399' },
 ]);
 
 // helpers

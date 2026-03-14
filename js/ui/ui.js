@@ -1,714 +1,660 @@
-// js/ui/ui.js
-// Acessa globais expostos pelo main.js: CFG, LEVELS, MODES, state, Engine, Store, Bus
-// (compatibilidade com o padrão antigo de window globals)
+// js/ui/ui.js — UI limpa, sem dependência de globals no topo
+// Todos os globals (CFG, Engine, Store, Bus, etc.) são acessados
+// via window.X dentro das funções — nunca no topo do módulo.
 
-const D = {
-  loginPanel:      document.getElementById('login-panel'),
-  loginInput:      document.getElementById('player-nick-input'),
-  loginBtn:        document.getElementById('login-btn'),
-  rankPanel:       document.getElementById('side-rank'),
-  rankList:        document.getElementById('rank-list-side'),
-  rankRefresh:     document.getElementById('rank-refresh-side'),
-  scoreLive:       document.getElementById('score-live'),
-  soundBtn:        document.getElementById('sound-btn'),
-  iconSoundOn:     document.getElementById('icon-sound-on'),
-  iconSoundOff:    document.getElementById('icon-sound-off'),
-  stStreak:        document.getElementById('st-streak'),
-  stCombo:         document.getElementById('st-combo'),
-  stBest:          document.getElementById('st-best'),
-  modeBtns:        document.querySelectorAll('.mode-btn'),
-  arena:           document.getElementById('arena'),
-  forcedEvent:     document.getElementById('forced-event'),
-  comboPopup:      document.getElementById('combo-popup'),
-  pwBar:           document.getElementById('pw-bar'),
-  pwFill:          document.getElementById('pw-fill'),
-  timerBar:        document.getElementById('timer-bar'),
-  timerFill:       document.getElementById('timer-fill'),
-  overlay:         document.getElementById('overlay'),
-  ovLabel:         document.getElementById('ov-label'),
-  ovScore:         document.getElementById('ov-score'),
-  ovSub:           document.getElementById('ov-sub'),
-  ovBest:          document.getElementById('ov-best'),
-  ovLevelBadge:    document.getElementById('ov-level-badge'),
-  playBtn:         document.getElementById('play-btn'),
-  statsBtn:        document.getElementById('stats-btn'),
-  levelsBtn:       document.getElementById('levels-btn'),
-  levelPanel:      document.getElementById('level-panel'),
-  levelGrid:       document.getElementById('level-grid'),
-  levelBack:       document.getElementById('level-back'),
-  statsPanel:      document.getElementById('stats-panel'),
-  statsBack:       document.getElementById('stats-back'),
-  statGames:       document.getElementById('stat-games'),
-  statTotalScore:  document.getElementById('stat-total-score'),
-  statTotalFood:   document.getElementById('stat-total-food'),
-  statBestCombo:   document.getElementById('stat-best-combo'),
-  statPlayTime:    document.getElementById('stat-play-time'),
-  levelBar:        document.getElementById('level-bar'),
-  levelLabel:      document.getElementById('level-label'),
-  levelProgress:   document.getElementById('level-progress'),
-  levelTarget:     document.getElementById('level-target'),
-  dpadBtns:        document.querySelectorAll('.dpad-btn'),
-  // Skin panel
-  skinPanel:       document.getElementById('skin-panel'),
-  skinToggle:      document.getElementById('skin-toggle'),
-  skinBody:        document.getElementById('skin-body'),
-  skinPreview:     document.getElementById('skin-preview'),
-  colorGrid:       document.getElementById('color-grid'),
-  skinGrid:        document.getElementById('skin-grid'),
-  // Forced event (fora do mapa)
-  forcedEvent:     document.getElementById('forced-event'),
-  forcedText:      document.querySelector('#forced-event .fe-text'),
-  forcedIcon:      document.querySelector('#forced-event .fe-icon'),
-};
+// ── Referências DOM (lazily safe) ────────────────────────────────
+function el(id)  { return document.getElementById(id); }
+function qsa(sel){ return document.querySelectorAll(sel); }
 
+// ── Estado local da UI ────────────────────────────────────────────
 let _selectedMode  = 'classic';
 let _selectedLevel = 1;
 let _comboTimeout  = null;
 let _lastCombo     = 0;
 
-// ── Combo popup ──────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────
+function _hide(e){ if(e) e.classList.add('hidden'); }
+function _show(e){ if(e) e.classList.remove('hidden'); }
+
+// ── Combo popup ───────────────────────────────────────────────────
 function _showComboPopup(combo) {
-  if (!D.comboPopup) return;
-  if (combo < 3) { D.comboPopup.classList.remove('pop'); return; }
-  D.comboPopup.textContent = combo >= CFG.COMBO_MAX ? `MAX ×${combo}!` : `×${combo}`;
-  D.comboPopup.classList.remove('pop');
-  void D.comboPopup.offsetWidth;
-  D.comboPopup.classList.add('pop');
+  const p = el('combo-popup'); if(!p) return;
+  if(combo < 3){ p.classList.remove('pop'); return; }
+  p.textContent = combo >= window.CFG?.COMBO_MAX ? `MAX ×${combo}!` : `×${combo}`;
+  p.classList.remove('pop');
+  void p.offsetWidth;
+  p.classList.add('pop');
   clearTimeout(_comboTimeout);
-  _comboTimeout = setTimeout(() => D.comboPopup.classList.remove('pop'), 700);
+  _comboTimeout = setTimeout(() => p.classList.remove('pop'), 700);
 }
 
-// ── HUD ──────────────────────────────────────────────────────────
+// ── HUD ───────────────────────────────────────────────────────────
 function _updateHUD(st) {
-  if (D.scoreLive) D.scoreLive.textContent = String(st.score).padStart(2, '0');
-  if (D.stStreak)  D.stStreak.textContent  = st.streak;
-  if (D.stBest)    D.stBest.textContent    = st.bestScore;
+  const scoreLive = el('score-live');
+  const stStreak  = el('st-streak');
+  const stBest    = el('st-best');
+  const stCombo   = el('st-combo');
+  const pwFill    = el('pw-fill');
+  const pwLabel   = el('pw-label');
+  const timerBar  = el('timer-bar');
+  const timerFill = el('timer-fill');
+  const levelBar  = el('level-bar');
 
-  if (D.stCombo) {
-    D.stCombo.textContent    = st.combo >= 2 ? `×${st.combo}` : '×1';
-    D.stCombo.dataset.level  = st.combo >= 5 ? 'high' : st.combo >= 3 ? 'mid' : 'low';
+  if(scoreLive) scoreLive.textContent = String(st.score).padStart(2,'0');
+  if(stStreak)  stStreak.textContent  = st.streak;
+  if(stBest)    stBest.textContent    = st.bestScore;
+
+  if(stCombo){
+    stCombo.textContent   = st.combo >= 2 ? `×${st.combo}` : '×1';
+    stCombo.dataset.level = st.combo >= 5 ? 'high' : st.combo >= 3 ? 'mid' : 'low';
   }
 
-  if (D.pwFill) {
-    D.pwFill.style.width = (st.pwActive && st.pwDuration > 0)
-      ? Math.max(0, (st.pwTimer / st.pwDuration) * 100) + '%'
-      : '0%';
+  if(pwFill){
+    const pct = (st.pwActive && st.pwDuration > 0)
+      ? Math.max(0,(st.pwTimer/st.pwDuration)*100) : 0;
+    pwFill.style.width      = pct + '%';
+    pwFill.dataset.kind     = st.pwActive ? st.pwKind : '';
+  }
+  if(pwLabel){
+    const labels = {
+      slow:'LENTO', ghost:'FANTASMA', magnet:'ÍMÃ', x2:'×2',
+      x3:'×3', portal_mode:'PORTAL', freeze:'GELO', shield:'ESCUDO', dash:'TURBO'
+    };
+    pwLabel.textContent = st.pwActive ? (labels[st.pwKind]||st.pwKind.toUpperCase()) : '';
   }
 
-  if (D.timerFill) {
-    if (st.mode === 'challenge' && st.timeLeft !== null) {
-      const ld  = LEVELS[st.level - 1];
-      const pct = ld ? (st.timeLeft / ld.timeLimit) * 100 : 0;
-      D.timerFill.style.width = Math.max(0, pct) + '%';
-      if (D.timerBar) D.timerBar.style.display = 'block';
+  if(timerFill && timerBar){
+    if(st.mode === 'challenge' && st.timeLeft !== null){
+      const ld  = window.LEVELS?.[st.level-1];
+      const pct = ld ? (st.timeLeft/ld.timeLimit)*100 : 0;
+      timerFill.style.width = Math.max(0,pct) + '%';
+      timerBar.style.display = 'block';
     } else {
-      if (D.timerBar) D.timerBar.style.display = 'none';
+      timerBar.style.display = 'none';
     }
   }
 
-  if (D.levelBar) {
-    if (st.mode === 'challenge') {
-      const ld = LEVELS[st.level - 1];
-      D.levelBar.classList.remove('hidden');
-      if (D.levelLabel)    D.levelLabel.textContent    = `fase ${st.level}`;
-      if (D.levelProgress) D.levelProgress.textContent = st.levelEaten;
-      if (D.levelTarget)   D.levelTarget.textContent   = ld?.target ?? '?';
+  if(levelBar){
+    if(st.mode === 'challenge'){
+      const ld = window.LEVELS?.[st.level-1];
+      _show(levelBar);
+      const lbl = el('level-label');    if(lbl)  lbl.textContent  = `fase ${st.level}`;
+      const lpg = el('level-progress'); if(lpg)  lpg.textContent  = st.levelEaten;
+      const ltg = el('level-target');   if(ltg)  ltg.textContent  = ld?.target ?? '?';
     } else {
-      D.levelBar.classList.add('hidden');
+      _hide(levelBar);
     }
   }
 }
 
-// ── Overlay ──────────────────────────────────────────────────────
+// ── Overlay ───────────────────────────────────────────────────────
 function _showMenu() {
-  if (!D.overlay) return;
-  D.overlay.classList.remove('hidden');
-  D.overlay.dataset.phase = 'menu';
-  if (D.ovLabel)      D.ovLabel.textContent      = 'snake';
-  if (D.ovScore)      D.ovScore.textContent      = '—';
-  if (D.ovSub)        D.ovSub.textContent        = '';
-  if (D.ovBest)       D.ovBest.classList.add('hidden');
-  if (D.ovLevelBadge) D.ovLevelBadge.classList.add('hidden');
-  if (D.playBtn)      D.playBtn.textContent      = 'iniciar';
+  const ov = el('overlay'); if(!ov) return;
+  _show(ov); ov.dataset.phase = 'menu';
+  const ovLabel = el('ov-label'); if(ovLabel) ovLabel.textContent = 'snake';
+  const ovScore = el('ov-score'); if(ovScore) ovScore.textContent = '—';
+  const ovSub   = el('ov-sub');   if(ovSub)   ovSub.textContent   = '';
+  _hide(el('ov-best')); _hide(el('ov-level-badge'));
+  const pb = el('play-btn'); if(pb) pb.textContent = 'iniciar';
 }
 
 function _showGameOver(data) {
-  if (!D.overlay) return;
-  D.overlay.classList.remove('hidden');
-  D.overlay.dataset.phase = 'gameover';
-
-  const best = Store.getBest(state.mode);
-  if (D.ovLabel) D.ovLabel.textContent = data.isNew ? 'NOVO RECORDE' : 'FIM DE JOGO';
-  if (D.ovScore) D.ovScore.textContent = String(data.score).padStart(2, '0');
-  if (D.ovSub)   D.ovSub.innerHTML =
-    `${data.streak} comidos · combo ×${data.combo}<br>` +
-    `<small>espaço ou R para reiniciar</small>`;
-  if (D.ovBest) {
-    if (!data.isNew && best > 0) {
-      D.ovBest.textContent = `recorde: ${best}`;
-      D.ovBest.classList.remove('hidden');
-    } else {
-      D.ovBest.classList.add('hidden');
-    }
+  const ov = el('overlay'); if(!ov) return;
+  _show(ov); ov.dataset.phase = 'gameover';
+  const best = window.Store?.getBest(window.state?.mode || 'classic') || 0;
+  const ovLabel = el('ov-label'); if(ovLabel) ovLabel.textContent = data.isNew ? 'NOVO RECORDE' : 'FIM DE JOGO';
+  const ovScore = el('ov-score'); if(ovScore) ovScore.textContent = String(data.score).padStart(2,'0');
+  const ovSub   = el('ov-sub');
+  if(ovSub) ovSub.innerHTML = `${data.streak} comidos · combo ×${data.combo}<br><small>espaço ou R para reiniciar</small>`;
+  const ovBest  = el('ov-best');
+  if(ovBest){
+    if(!data.isNew && best > 0){ ovBest.textContent=`recorde: ${best}`; _show(ovBest); }
+    else _hide(ovBest);
   }
-  if (D.playBtn) D.playBtn.textContent = 'jogar novamente';
+  const pb = el('play-btn'); if(pb) pb.textContent = 'jogar novamente';
 }
 
-function _hideOverlay() { D.overlay?.classList.add('hidden'); }
+function _hideOverlay() { _hide(el('overlay')); }
 
-// ── Rank panel ───────────────────────────────────────────────────
+// ── Rank ──────────────────────────────────────────────────────────
 const RankPanel = {
-  _cache: [],
+  _cache: {},   // {classic:[], wrap:[], speed:[], challenge:[]}
+  _mode: 'classic',
 
-  async load(force = false) {
-    if (!D.rankList) return;
-    if (!force && this._cache.length > 0) { this._render(this._cache); return; }
+  setMode(mode){ this._mode=mode; },
 
-    D.rankList.innerHTML = '<div class="rank-loading">sincronizando...</div>';
-    if (D.rankPanel) D.rankPanel.classList.remove('hidden');
-
-    if (!window.FirebaseDB) {
-      D.rankList.innerHTML = '<div class="rank-loading">modo offline</div>';
-      return;
+  async load(force=false) {
+    const list  = el('rank-list-side');
+    const panel = el('side-rank');
+    if(!list) return;
+    const mode = this._mode;
+    if(!force && this._cache[mode]?.length){ this._render(this._cache[mode]); return; }
+    list.innerHTML = '<div class="rank-loading">sincronizando...</div>';
+    if(panel) _show(panel);
+    if(!window.FirebaseDB || !window.FirebaseDB.isOnline){
+      list.innerHTML='<div class="rank-loading">modo offline</div>'; return;
     }
     try {
-      const rows   = await window.FirebaseDB.loadRanking(8);
-      this._cache  = rows;
-      this._render(rows);
-    } catch (e) {
-      D.rankList.innerHTML = '<div class="rank-loading">erro na ligação<br><button class="btn-retry" onclick="RankPanel.load(true)">tentar novamente</button></div>';
+      const rows = await window.FirebaseDB.loadRanking(8, mode);
+      this._cache[mode] = rows; this._render(rows);
+    } catch(e) {
+      list.innerHTML = '<div class="rank-loading">erro<br><button class="btn-retry" onclick="window.RankPanel.load(true)">tentar novamente</button></div>';
     }
   },
 
   _render(rows) {
-    if (!D.rankList) return;
-    const currentId = Store.getPlayerId();
-    if (!rows?.length) { D.rankList.innerHTML = '<div class="rank-loading">sem dados</div>'; return; }
-
-    const icons = ['▲', '◆', '★'];
-    D.rankList.innerHTML = rows.map((r, i) => {
-      const div = document.createElement('div');
-      div.textContent = r.nick || r.id.replace(/^P_/, '');
-      const nick  = div.textContent; // XSS-safe via textContent
-      const score = r.best_classic || 0;
+    const list = el('rank-list-side'); if(!list) return;
+    const currentId = window.Store?.getPlayerId() || '';
+    const mode = this._mode;
+    const field = {classic:'best_classic',wrap:'best_wrap',speed:'best_speed',challenge:'best_challenge'}[mode]||'best_classic';
+    // Atualiza label do modo no header
+    const modeLabels={classic:'clássico',wrap:'portal',speed:'veloz',challenge:'desafio'};
+    const header = el('side-rank')?.querySelector('.rank-mode-label');
+    if(header) header.textContent = modeLabels[mode]||mode;
+    if(!rows?.length){ list.innerHTML='<div class="rank-loading">sem dados</div>'; return; }
+    const icons = ['▲','◆','★'];
+    list.innerHTML = rows.map((r,i) => {
+      const nick  = (r.nick || r.id.replace(/^P_/,'')).replace(/</g,'&lt;');
+      const score = r[field] || 0;
+      if(score===0) return '';
       const isMe  = r.id === currentId;
-      const nickColor = isMe ? SnakeSkin.getColor().body : '';
-      return `<div class="rank-row${isMe ? ' rank-me' : ''}" style="${isMe && nickColor ? '--nick-color:'+nickColor : ''}">
-        <span class="rank-pos">${icons[i] || (i + 1)}</span>
-        <span class="rank-nick"${isMe && nickColor ? ` style="color:${nickColor}"` : ''}>${nick.replace(/</g,'&lt;')}</span>
+      const col   = isMe && window.SnakeSkin ? window.SnakeSkin.getColor().body : '';
+      return `<div class="rank-row${isMe?' rank-me':''}">
+        <span class="rank-pos">${icons[i]||(i+1)}</span>
+        <span class="rank-nick"${col?` style="color:${col}"`:''}>` + nick + `</span>
         <span class="rank-score">${score}</span>
       </div>`;
-    }).join('');
-  },
+    }).filter(Boolean).join('') || '<div class="rank-loading">sem dados</div>';
+  }
 };
 
-// ── Auth ─────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────
 function _initAuth() {
-  if (!D.loginPanel) return;
+  const loginPanel = el('login-panel');
+  const loginInput = el('player-nick-input');
+  const loginBtn   = el('login-btn');
+  if(!loginPanel) return;
 
+  // Auto-login se já tem nick salvo
   let savedNick = null;
-  try { savedNick = localStorage.getItem(CFG.STORAGE_KEY + 'last_nick'); } catch (e) {}
+  try { savedNick = localStorage.getItem((window.CFG?.STORAGE_KEY||'snake_v2_')+'last_nick'); } catch(_){}
 
-  const authenticate = async (e) => {
-    if (e?.preventDefault) e.preventDefault();
-    if (D.loginBtn) D.loginBtn.classList.add('is-loading');
-
+  const authenticate = async () => {
+    if(loginBtn) loginBtn.classList.add('is-loading');
     try {
-      let nick = D.loginInput ? D.loginInput.value.trim() : '';
-      if (!nick) {
-        nick = 'JOG' + Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-      } else {
-        nick = nick.toUpperCase().replace(/[^A-Z0-9_\-]/g, '').slice(0, 12) || 'JOG0001';
-      }
+      let nick = loginInput ? loginInput.value.trim() : '';
+      if(!nick) nick = 'JOG'+Math.floor(Math.random()*9999).toString().padStart(4,'0');
+      else nick = nick.toUpperCase().replace(/[^A-Z0-9_\-]/g,'').slice(0,12) || 'JOG0001';
 
-      const id = 'P_' + nick;
+      const id = 'P_'+nick;
       try {
-        localStorage.setItem(CFG.STORAGE_KEY + 'last_nick',       nick);
-        localStorage.setItem(CFG.STORAGE_KEY + 'last_session_id', id);
-      } catch (_) {}
+        localStorage.setItem((window.CFG?.STORAGE_KEY||'snake_v2_')+'last_nick', nick);
+        localStorage.setItem((window.CFG?.STORAGE_KEY||'snake_v2_')+'last_session_id', id);
+      } catch(_){}
 
-      Store.setPlayerId(id);
+      window.Store?.setPlayerId(id);
 
-      // Merge com cloud (não bloqueia a interface)
-      if (window.FirebaseDB) {
+      // Sync Firebase sem bloquear
+      if(window.FirebaseDB) {
         Promise.race([
           window.FirebaseDB.loadProfile(id),
-          new Promise(r => setTimeout(() => r(null), 3000)),
+          new Promise(r=>setTimeout(()=>r(null),3000))
         ]).then(cloud => {
-          if (cloud) {
-            if ((cloud.best_classic   || 0) > Store.getBest('classic'))   Store.set('best_classic',   cloud.best_classic);
-            if ((cloud.best_challenge || 0) > Store.getBest('challenge')) Store.set('best_challenge', cloud.best_challenge);
-            if ((cloud.unlocked       || 1) > Store.getUnlocked())        Store.set('unlocked',       cloud.unlocked);
+          if(cloud){
+            const S = window.Store;
+            if((cloud.best_classic||0)   > S.getBest('classic'))   S.set('best_classic',   cloud.best_classic);
+            if((cloud.best_challenge||0) > S.getBest('challenge')) S.set('best_challenge', cloud.best_challenge);
+            if((cloud.unlocked||1)       > S.getUnlocked())        S.set('unlocked',       cloud.unlocked);
           }
-          // Salva perfil imediatamente após login
-          Store.syncToCloud();
-        }).catch(() => Store.syncToCloud());
+          window.Store?.syncToCloud();
+        }).catch(()=>window.Store?.syncToCloud());
       }
 
-      if (D.stBest) D.stBest.textContent = Store.getBest(_selectedMode);
+      // Atualiza HUD
+      const stBest = el('st-best');
+      if(stBest) stBest.textContent = window.Store?.getBest(_selectedMode) || 0;
 
-      if (D.loginPanel) {
-        D.loginPanel.style.opacity = '0';
-        D.loginPanel.style.pointerEvents = 'none';
-        setTimeout(() => {
-          D.loginPanel.classList.add('hidden');
-          D.loginPanel.style.opacity = '';
-          D.loginPanel.style.pointerEvents = '';
-          D.rankPanel?.classList.remove('hidden');
-          RankPanel.load();
-          Bus.emit('authComplete', { id, nick });
-        }, 300);
-      }
-    } catch (err) {
-      console.error('[Auth] erro:', err);
-      D.loginPanel?.classList.add('hidden');
+      // Fecha painel
+      loginPanel.style.transition = 'opacity 0.25s';
+      loginPanel.style.opacity    = '0';
+      setTimeout(() => {
+        loginPanel.style.display    = 'none';
+        loginPanel.style.transition = '';
+        loginPanel.style.opacity    = '';
+        _show(el('side-rank'));
+        RankPanel.setMode(_selectedMode);
+        RankPanel.load();
+        window.Bus?.emit('authComplete', {id, nick});
+      }, 280);
+    } catch(err) {
+      console.error('[Auth]', err);
+      loginPanel.style.display = 'none';
     } finally {
-      if (D.loginBtn) D.loginBtn.classList.remove('is-loading');
+      if(loginBtn) loginBtn.classList.remove('is-loading');
     }
   };
 
-  if (savedNick) {
-    if (D.loginInput) D.loginInput.value = savedNick;
-    setTimeout(authenticate, 80);
+  if(savedNick) {
+    if(loginInput) loginInput.value = savedNick;
+    setTimeout(authenticate, 100);
     return;
   }
 
-  D.loginBtn?.addEventListener('click', authenticate);
-  D.loginInput?.addEventListener('keypress', e => { if (e.key === 'Enter') { e.preventDefault(); authenticate(e); } });
-}
-
-// ── Teclado ──────────────────────────────────────────────────────
-function _bindKeyboard() {
-  const MAP = { ArrowUp:'UP', ArrowDown:'DOWN', ArrowLeft:'LEFT', ArrowRight:'RIGHT', w:'UP', s:'DOWN', a:'LEFT', d:'RIGHT', W:'UP', S:'DOWN', A:'LEFT', D:'RIGHT' };
-  document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (MAP[e.key]) { e.preventDefault(); Engine.setDir(MAP[e.key]); return; }
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      if (state.phase === 'menu' || state.phase === 'gameover') _startGame();
-      else if (state.phase === 'playing') Engine.pause();
-      else if (state.phase === 'paused')  Engine.resume();
-    }
-    if (e.key.toLowerCase() === 'r') {
-      e.preventDefault();
-      if (['gameover','playing','paused'].includes(state.phase)) _startGame();
-    }
-  });
-}
-
-// ── Swipe ────────────────────────────────────────────────────────
-function _bindSwipe() {
-  let tx0 = 0, ty0 = 0;
-  document.addEventListener('touchstart', e => { tx0 = e.touches[0].clientX; ty0 = e.touches[0].clientY; }, { passive: true });
-  document.addEventListener('touchend', e => {
-    if (state.phase !== 'playing') return;
-    const dx = e.changedTouches[0].clientX - tx0;
-    const dy = e.changedTouches[0].clientY - ty0;
-    if (Math.abs(dx) < 22 && Math.abs(dy) < 22) return;
-    Engine.setDir(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'RIGHT' : 'LEFT') : (dy > 0 ? 'DOWN' : 'UP'));
-  }, { passive: true });
-}
-
-// ── D-pad ────────────────────────────────────────────────────────
-function _bindDpad() {
-  D.dpadBtns.forEach(btn => {
-    const dir = btn.dataset.d;
-    btn.addEventListener('click', () => Engine.setDir(dir));
-    btn.addEventListener('touchstart', e => { e.preventDefault(); Engine.setDir(dir); }, { passive: false });
-  });
-}
-
-// ── Botões / modos / painéis ─────────────────────────────────────
-function _buildLevelGrid() {
-  if (!D.levelGrid) return;
-  D.levelGrid.innerHTML = '';
-  const unlocked = Store.getUnlocked();
-  LEVELS.forEach((lvl, i) => {
-    const num    = i + 1;
-    const locked = num > unlocked;
-    const btn    = document.createElement('div');
-    btn.className = 'level-cell' + (locked ? ' locked' : '');
-    btn.innerHTML = `<span class="lc-num">${num}</span><span class="lc-name">${lvl.label}</span>`;
-    if (!locked) {
-      btn.addEventListener('click', () => {
-        _selectedLevel = num; _selectedMode = 'challenge';
-        D.modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === 'challenge'));
-        D.levelPanel?.classList.add('hidden');
-        _startGame();
-      });
-    }
-    D.levelGrid.appendChild(btn);
-  });
-}
-
-function _showStats() {
-  const s = Store.getStats();
-  if (D.statGames)      D.statGames.textContent      = s.gamesPlayed;
-  if (D.statTotalScore) D.statTotalScore.textContent  = s.totalScore;
-  if (D.statTotalFood)  D.statTotalFood.textContent   = s.totalFood;
-  if (D.statBestCombo)  D.statBestCombo.textContent   = `×${s.bestCombo}`;
-  if (D.statPlayTime) {
-    const m = Math.floor(s.playTime / 60000), sec = Math.floor((s.playTime % 60000) / 1000);
-    D.statPlayTime.textContent = `${m}m ${sec}s`;
+  // Botão principal — click e pointerup para cobrir todos os browsers
+  if(loginBtn) {
+    loginBtn.addEventListener('click',      authenticate);
+    loginBtn.addEventListener('pointerup',  e => { if(e.pointerType==='touch') authenticate(); });
   }
-  D.statsPanel?.classList.remove('hidden');
+  if(loginInput) {
+    loginInput.addEventListener('keydown',  e => e.stopPropagation());
+    loginInput.addEventListener('keypress', e => { if(e.key==='Enter'){ e.preventDefault(); authenticate(); } });
+  }
 }
 
-function _bindButtons() {
-  D.playBtn?.addEventListener('click', () => {
-    if (D.overlay?.dataset.phase !== 'levelup') _startGame();
-  });
-  D.levelsBtn?.addEventListener('click', () => { _buildLevelGrid(); D.levelPanel?.classList.remove('hidden'); });
-  D.levelBack?.addEventListener('click', () => D.levelPanel?.classList.add('hidden'));
-  D.statsBtn?.addEventListener('click',  () => _showStats());
-  D.statsBack?.addEventListener('click', () => D.statsPanel?.classList.add('hidden'));
-  D.rankRefresh?.addEventListener('click', () => RankPanel.load(true));
-
-  D.soundBtn?.addEventListener('click', () => {
-    const on = window.SoundBus?.toggle();
-    if (D.iconSoundOff) D.iconSoundOff.style.display = on ? 'none'  : '';
-    if (D.iconSoundOn)  D.iconSoundOn.style.display  = on ? ''      : 'none';
-  });
-
-  D.modeBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (state.phase === 'playing') return;
-      _selectedMode = btn.dataset.mode;
-      D.modeBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === _selectedMode));
-      if (D.stBest) D.stBest.textContent = Store.getBest(_selectedMode);
-      if (_selectedMode === 'challenge') { _buildLevelGrid(); D.levelPanel?.classList.remove('hidden'); }
-    });
-  });
-}
-
-// ── Start ────────────────────────────────────────────────────────
-function _startGame() {
-  _hideOverlay();
-  Engine.start(_selectedMode, _selectedMode === 'challenge' ? _selectedLevel : 1);
-}
-
-// ── Bus ──────────────────────────────────────────────────────────
-function _bindBus() {
-  Bus.on('stateUpdate', _updateHUD);
-  Bus.on('foodEaten', ({ combo }) => {
-    if (combo !== _lastCombo) { _lastCombo = combo; _showComboPopup(combo); }
-  });
-  Bus.on('gameOver', data => {
-    setTimeout(() => _showGameOver(data), 350);
-    // Atualiza rank 2s depois do game over (dá tempo para o Firestore gravar)
-    setTimeout(() => RankPanel.load(true), 2000);
-  });
-  Bus.on('phaseChange', phase => {
-    if (phase === 'playing') _hideOverlay();
-    if (phase === 'win') {
-      D.overlay?.classList.remove('hidden');
-      if (D.ovLabel) D.ovLabel.textContent = 'PARABÉNS!';
-      if (D.ovScore) D.ovScore.textContent = String(state.score).padStart(2, '0');
-      if (D.ovSub)   D.ovSub.textContent   = 'Todos os setores concluídos.';
-      if (D.playBtn) D.playBtn.textContent  = 'jogar novamente';
+// ── Teclado ───────────────────────────────────────────────────────
+function _bindKeyboard() {
+  const MAP = {ArrowUp:'UP',ArrowDown:'DOWN',ArrowLeft:'LEFT',ArrowRight:'RIGHT',w:'UP',s:'DOWN',a:'LEFT',d:'RIGHT',W:'UP',S:'DOWN',A:'LEFT',D:'RIGHT'};
+  document.addEventListener('keydown', e => {
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+    if(MAP[e.key]){ e.preventDefault(); window.Engine?.setDir(MAP[e.key]); return; }
+    const phase = window.state?.phase;
+    if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();
+      if(phase==='menu'||phase==='gameover') _startGame();
+      else if(phase==='playing') window.Engine?.pause();
+      else if(phase==='paused')  window.Engine?.resume();
     }
-  });
-  Bus.on('powerupEnd',   () => { if (D.pwFill) D.pwFill.style.width = '0%'; });
-  Bus.on('levelComplete', ({ level, bonus }) => {
-    if (D.overlay) {
-      D.overlay.classList.remove('hidden');
-      D.overlay.dataset.phase = 'levelup';
-      if (D.ovLabel) D.ovLabel.textContent = `SETOR ${level} OK`;
-      if (D.ovScore) D.ovScore.textContent = `+${bonus}`;
-      if (D.ovSub)   D.ovSub.textContent   = 'avançando...';
-    }
-  });
-  Bus.on('newRecord', () => {
-    setTimeout(() => RankPanel.load(true), 3000);
-  });
-
-  // Portal mode: borda azul na arena
-  Bus.on('portalModeStart', () => {
-    D.arena?.classList.add('portal-active');
-  });
-  Bus.on('portalModeEnd', () => {
-    D.arena?.classList.remove('portal-active');
-  });
-
-  // Powerup forçado (500pts) — aparece à direita fora do mapa
-  Bus.on('forcedPowerup', ({message}) => {
-    if (!D.forcedEvent) return;
-    if (D.forcedText) D.forcedText.textContent = message || '500 PTS — SLOW + REDUÇÃO';
-    D.forcedEvent.classList.remove('hidden', 'show');
-    void D.forcedEvent.offsetWidth;
-    D.forcedEvent.classList.add('show');
-    setTimeout(() => {
-      D.forcedEvent.classList.remove('show');
-      D.forcedEvent.classList.add('hidden');
-    }, 3500);
-    D.scoreLive?.classList.add('milestone');
-    setTimeout(() => D.scoreLive?.classList.remove('milestone'), 400);
-  });
-
-  // Colorir a barra de powerup conforme o tipo
-  Bus.on('powerupStart', ({kind}) => {
-    if (D.pwFill) D.pwFill.dataset.kind = kind || '';
-  });
-  Bus.on('powerupEnd', () => {
-    if (D.pwFill) { D.pwFill.dataset.kind = ''; D.pwFill.style.width = '0%'; }
-  });
-
-  // Timer urgente quando < 10s
-  Bus.on('timerTick', (t) => {
-    if (D.timerFill) {
-      if (t !== null && t <= 10000) D.timerFill.classList.add('urgent');
-      else D.timerFill.classList.remove('urgent');
-    }
-  });
-
-  // Tooltip de comida rara no canvas
-  Bus.on('foodEaten', ({food}) => {
-    if (food.pts >= 20 && D.arena) {
-      const tip = document.createElement('div');
-      tip.className = 'food-tooltip';
-      tip.textContent = '+' + food.pts + ' ' + (food.label || '');
-      tip.style.left = Math.random() * 60 + 20 + '%';
-      tip.style.top  = Math.random() * 50 + 20 + '%';
-      D.arena.appendChild(tip);
-      setTimeout(() => tip.remove(), 1900);
+    if(e.key.toLowerCase()==='r'){
+      e.preventDefault();
+      if(['gameover','playing','paused'].includes(phase)) _startGame();
     }
   });
 }
 
-// ── Init ─────────────────────────────────────────────────────────
-// ── Rank nick colorido ───────────────────────────────────────────
-function _updateNickColor() {
-  const color = SnakeSkin.getColor();
-  document.documentElement.style.setProperty('--nick-color', color.body);
+// ── Swipe ─────────────────────────────────────────────────────────
+function _bindSwipe() {
+  let tx=0, ty=0;
+  // Swipe na arena especificamente para não conflitar com scroll da página
+  const arena = el('arena');
+  if(!arena) return;
+  arena.addEventListener('touchstart', e => {
+    tx=e.touches[0].clientX; ty=e.touches[0].clientY;
+  }, {passive:true});
+  arena.addEventListener('touchend', e => {
+    if(window.state?.phase !== 'playing') return;
+    const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty;
+    if(Math.abs(dx)<18&&Math.abs(dy)<18) return;
+    window.Engine?.setDir(Math.abs(dx)>Math.abs(dy)?(dx>0?'RIGHT':'LEFT'):(dy>0?'DOWN':'UP'));
+  }, {passive:true});
 }
 
-// ── Skin Panel com carrossel GSAP ────────────────────────────────
+// ── D-pad ─────────────────────────────────────────────────────────
+function _bindDpad() {
+  qsa('.dpad-btn').forEach(btn => {
+    const dir = btn.dataset.d;
+    // pointerdown: melhor latência, previne scroll acidental
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      window.Engine?.setDir(dir);
+      btn.classList.add('pressed');
+      if(navigator.vibrate) navigator.vibrate(6);
+    }, {passive:false});
+    btn.addEventListener('pointerup',   () => btn.classList.remove('pressed'));
+    btn.addEventListener('pointerleave',() => btn.classList.remove('pressed'));
+  });
+}
+
+// ── Tema ──────────────────────────────────────────────────────────
+function _initTheme() {
+  const applyTheme = dark => {
+    document.documentElement.setAttribute('data-theme', dark?'dark':'light');
+    const meta = el('theme-meta');
+    if(meta) meta.content = dark?'#0f0e0d':'#f4f1ec';
+    try{ localStorage.setItem((window.CFG?.STORAGE_KEY||'snake_v2_')+'theme', dark?'dark':'light'); }catch(_){}
+  };
+
+  const saved = (() => { try{ return localStorage.getItem((window.CFG?.STORAGE_KEY||'snake_v2_')+'theme'); }catch(_){return null;} })();
+  const sysDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved==='dark'||(saved===null&&sysDark));
+
+  el('theme-btn')?.addEventListener('click', () => {
+    applyTheme(document.documentElement.getAttribute('data-theme')!=='dark');
+  });
+  window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    try{ if(!localStorage.getItem((window.CFG?.STORAGE_KEY||'snake_v2_')+'theme')) applyTheme(e.matches); }catch(_){}
+  });
+}
+
+// ── Skin panel ────────────────────────────────────────────────────
 function _initSkinPanel() {
-  if (!D.colorGrid || !D.skinGrid) return;
+  const colorGrid   = el('color-grid');
+  const skinGrid    = el('skin-grid');
+  const skinPreview = el('skin-preview');
+  const skinBody    = el('skin-body');
+  const skinToggle  = el('skin-toggle');
+  if(!colorGrid || !skinGrid) return;
 
-  // ── Preview animado ──────────────────────────────────────────
-  let _previewCtx = D.skinPreview ? D.skinPreview.getContext('2d') : null;
-  let _previewAnim = null;
+  // ── Preview canvas animado ─────────────────────────────────
+  let _rafId = null;
+  const pctx = skinPreview?.getContext('2d') || null;
 
   function _drawPreview(now) {
-    if (!_previewCtx) return;
-    const pw = D.skinPreview.width, ph = D.skinPreview.height;
-    _previewCtx.clearRect(0, 0, pw, ph);
-    _previewCtx.fillStyle = CFG.BG;
-    _previewCtx.fillRect(0, 0, pw, ph);
-    const skin  = SnakeSkin.getSkin();
-    const color = SnakeSkin.getColor();
-    const c = 18;
-    const segs = 8;
-    for (let i = segs - 1; i >= 0; i--) {
-      _previewCtx.save();
-      const x = 12 + i * (c + 2) + c / 2;
-      const y = ph / 2 + Math.sin((now * 0.002) + i * 0.5) * 4;
-      _previewCtx.translate(x, y);
-      if (i === 0) skin.drawHead(_previewCtx, c, 'RIGHT', color);
-      else         skin.drawBody(_previewCtx, c, i, color);
-      _previewCtx.restore();
+    if(!pctx || !window.SnakeSkin) { _rafId=requestAnimationFrame(_drawPreview); return; }
+    const W=skinPreview.width, H=skinPreview.height;
+    // Fundo respeitando tema
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#f4f1ec';
+    pctx.setTransform(1,0,0,1,0,0);
+    pctx.globalAlpha=1; pctx.shadowBlur=0;
+    pctx.fillStyle=bg; pctx.fillRect(0,0,W,H);
+    const skin  = window.SnakeSkin.getSkin();
+    const color = window.SnakeSkin.getColor();
+    const c=18, segs=8;
+    for(let i=segs-1;i>=0;i--){
+      pctx.save();
+      pctx.translate(12+i*(c+2)+c/2, H/2+Math.sin(now*.002+i*.5)*4);
+      try{ i===0?skin.drawHead(pctx,c,'RIGHT',color):skin.drawBody(pctx,c,i,color); }catch(_){}
+      pctx.restore();
+      pctx.setTransform(1,0,0,1,0,0);
+      pctx.globalAlpha=1; pctx.shadowBlur=0;
     }
-    _previewAnim = requestAnimationFrame(_drawPreview);
+    _rafId=requestAnimationFrame(_drawPreview);
   }
+  const startPreview=()=>{ cancelAnimationFrame(_rafId); _rafId=requestAnimationFrame(_drawPreview); };
+  const stopPreview =()=>cancelAnimationFrame(_rafId);
 
-  function _startPreview() {
-    cancelAnimationFrame(_previewAnim);
-    _previewAnim = requestAnimationFrame(_drawPreview);
+  // ── Mini canvas de cada skin ───────────────────────────────
+  function drawMini(mc, sk) {
+    if(!window.SnakeSkin) return;
+    const ctx2 = mc.getContext('2d');
+    const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()||'#f4f1ec';
+    ctx2.setTransform(1,0,0,1,0,0);
+    ctx2.globalAlpha=1; ctx2.shadowBlur=0;
+    ctx2.globalCompositeOperation='source-over';
+    ctx2.clearRect(0,0,mc.width,mc.height);
+    ctx2.fillStyle=bg; ctx2.fillRect(0,0,mc.width,mc.height);
+    ctx2.save();
+    ctx2.translate(mc.width/2,mc.height/2);
+    try{ sk.drawHead(ctx2,24,'RIGHT',window.SnakeSkin.getColor()); }catch(_){ ctx2.fillStyle=window.SnakeSkin.getColor().body; ctx2.fillRect(-10,-10,20,20); }
+    ctx2.restore();
+    ctx2.setTransform(1,0,0,1,0,0);
+    ctx2.globalAlpha=1; ctx2.shadowBlur=0;
   }
-  function _stopPreview() {
-    cancelAnimationFrame(_previewAnim);
-  }
+  function refreshAllMinis(cards){ cards.forEach(({mc,sk})=>drawMini(mc,sk)); }
 
-  // Começa preview se painel estiver aberto
-  if (!D.skinBody?.classList.contains('hidden')) _startPreview();
-
-  // ── Cores ────────────────────────────────────────────────────
-  SNAKE_COLORS.forEach(col => {
+  // ── Cores ──────────────────────────────────────────────────
+  const COLORS = window.SNAKE_COLORS || [];
+  COLORS.forEach(col => {
     const btn = document.createElement('button');
-    btn.className = 'color-swatch' + (col.id === SnakeSkin.getColorId() ? ' active' : '');
-    btn.title = col.label;
-    btn.style.setProperty('--sw', col.body);
-    btn.setAttribute('aria-label', col.label);
-    btn.addEventListener('click', () => {
-      SnakeSkin.setColor(col.id);
-      D.colorGrid.querySelectorAll('.color-swatch').forEach(b => b.classList.remove('active'));
+    btn.className='color-swatch'+(col.id===(window.SnakeSkin?.getColorId()||'black')?' active':'');
+    btn.style.setProperty('--sw',col.body);
+    btn.title=col.label;
+    btn.setAttribute('aria-label',col.label);
+    btn.addEventListener('click',()=>{
+      window.SnakeSkin?.setColor(col.id);
+      colorGrid.querySelectorAll('.color-swatch').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
-      _updateNickColor();
-      _refreshRankColors();
-      _refreshSkinMinis();
-      if (typeof gsap !== 'undefined') {
-        gsap.fromTo(btn, {scale:0.7}, {scale:1, duration:0.35, ease:'back.out(2)'});
-      }
+      // Atualiza cor do nick no ranking
+      document.querySelectorAll('.rank-row.rank-me .rank-nick').forEach(n=>n.style.color=col.body);
     });
-    D.colorGrid.appendChild(btn);
+    colorGrid.appendChild(btn);
   });
 
-  // ── Skins — carrossel ────────────────────────────────────────
-  // Injeta GSAP se necessário (via CDN)
-  function _ensureGSAP(cb) {
-    if (typeof gsap !== 'undefined') { cb(); return; }
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js';
-    s.onload = cb;
-    document.head.appendChild(s);
-  }
+  // ── Carrossel de skins ─────────────────────────────────────
+  const SKINS = window.SNAKE_SKINS || [];
+  const COLS  = 3;
+  const PAGES = Math.ceil(SKINS.length/COLS);
+  let _page   = 0;
+  const cards = [];
 
-  const COLS = 3; // 3 skins por "página"
-  let _currentPage = 0;
-  const PAGES = Math.ceil(SNAKE_SKINS.length / COLS);
+  SKINS.forEach((sk,idx)=>{
+    const card=document.createElement('div');
+    card.className='skin-card'+(sk.id===(window.SnakeSkin?.getSkinId()||'classic')?' active':'');
 
-  // Gera cards de skin
-  const skinCards = SNAKE_SKINS.map((sk, idx) => {
-    const card = document.createElement('div');
-    card.className = 'skin-card' + (sk.id === SnakeSkin.getSkinId() ? ' active' : '');
-    card.dataset.idx = idx;
+    const mc=document.createElement('canvas'); mc.width=44; mc.height=44;
+    const lbl=document.createElement('span'); lbl.textContent=sk.label;
+    card.appendChild(mc); card.appendChild(lbl);
 
-    const mc = document.createElement('canvas');
-    mc.width = 44; mc.height = 44;
-    card.appendChild(mc);
-
-    const lbl = document.createElement('span');
-    lbl.textContent = sk.label;
-    card.appendChild(lbl);
-
-    const desc = document.createElement('small');
-    desc.textContent = sk.desc;
-    card.appendChild(desc);
-
-    card.addEventListener('click', () => {
-      SnakeSkin.setSkin(sk.id);
-      skinCards.forEach(c => c.classList.remove('active'));
+    card.addEventListener('click',()=>{
+      window.SnakeSkin?.setSkin(sk.id);
+      cards.forEach(c=>c.card.classList.remove('active'));
       card.classList.add('active');
-      _ensureGSAP(() => gsap.fromTo(card, {scale:0.88}, {scale:1, duration:0.4, ease:'elastic.out(1, 0.5)'}));
     });
-
-    D.skinGrid.appendChild(card);
-    return { card, mc, sk };
+    skinGrid.appendChild(card);
+    cards.push({card,mc,sk});
   });
 
-  function _renderSkinMini(mc, sk) {
-    const mctx = mc.getContext('2d');
-    mctx.clearRect(0,0,mc.width,mc.height);
-    mctx.fillStyle = CFG.BG; mctx.fillRect(0,0,mc.width,mc.height);
-    mctx.save(); mctx.translate(mc.width/2, mc.height/2);
-    sk.drawHead(mctx, 28, 'RIGHT', SnakeSkin.getColor());
-    mctx.restore();
+  // Renderiza todos os minis agora
+  refreshAllMinis(cards);
+
+  // Reenderiza quando cor muda
+  window.Bus?.on('skinChanged',()=>{ refreshAllMinis(cards); });
+
+  // ── Navegação ──────────────────────────────────────────────
+  const CARD_W=56; // 52px + 4px gap
+
+  function goToPage(p){
+    _page=Math.max(0,Math.min(p,PAGES-1));
+    const x=-_page*COLS*CARD_W;
+    skinGrid.style.transform=`translateX(${x}px)`;
+    document.querySelectorAll('.carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===_page));
   }
 
-  function _refreshSkinMinis() {
-    skinCards.forEach(({mc,sk}) => _renderSkinMini(mc, sk));
-  }
-  _refreshSkinMinis();
-
-  // ── Navegação do carrossel ───────────────────────────────────
-  function _goToPage(page, animated = true) {
-    _currentPage = Math.max(0, Math.min(page, PAGES - 1));
-    const offset = -_currentPage * COLS;
-    _ensureGSAP(() => {
-      const track = D.skinGrid;
-      if (!track) return;
-      // Move o grid via transform
-      const colW = 56; // largura de cada card + gap
-      const x = offset * colW;
-      if (animated) {
-        gsap.to(track, { x, duration: 0.4, ease: 'power2.out' });
-      } else {
-        gsap.set(track, { x });
-      }
-      // Atualiza dots
-      document.querySelectorAll('.carousel-dot').forEach((d, i) => {
-        d.classList.toggle('active', i === _currentPage);
-      });
-    });
-  }
-
-  // Botões prev/next e dots
-  const nav = document.createElement('div');
-  nav.className = 'carousel-nav';
-
-  const prevBtn = document.createElement('button');
-  prevBtn.className = 'carousel-arrow';
-  prevBtn.innerHTML = '‹';
-  prevBtn.addEventListener('click', () => {
-    _goToPage(_currentPage - 1);
-    _ensureGSAP(() => gsap.fromTo(prevBtn, {scale:0.8},{scale:1,duration:0.25,ease:'back.out(2)'}));
-  });
-
-  const dotsWrap = document.createElement('div');
-  dotsWrap.className = 'carousel-dots';
-  for (let p = 0; p < PAGES; p++) {
-    const dot = document.createElement('button');
-    dot.className = 'carousel-dot' + (p === 0 ? ' active' : '');
-    dot.addEventListener('click', () => _goToPage(p));
+  const nav=document.createElement('div'); nav.className='carousel-nav';
+  const prevBtn=document.createElement('button'); prevBtn.className='carousel-arrow'; prevBtn.textContent='‹';
+  const nextBtn=document.createElement('button'); nextBtn.className='carousel-arrow'; nextBtn.textContent='›';
+  const dotsWrap=document.createElement('div'); dotsWrap.className='carousel-dots';
+  for(let p=0;p<PAGES;p++){
+    const dot=document.createElement('button');
+    dot.className='carousel-dot'+(p===0?' active':'');
+    dot.addEventListener('click',()=>goToPage(p));
     dotsWrap.appendChild(dot);
   }
+  prevBtn.addEventListener('click',()=>goToPage(_page-1));
+  nextBtn.addEventListener('click',()=>goToPage(_page+1));
+  nav.appendChild(prevBtn); nav.appendChild(dotsWrap); nav.appendChild(nextBtn);
+  skinGrid.after(nav);
 
-  const nextBtn = document.createElement('button');
-  nextBtn.className = 'carousel-arrow';
-  nextBtn.innerHTML = '›';
-  nextBtn.addEventListener('click', () => {
-    _goToPage(_currentPage + 1);
-    _ensureGSAP(() => gsap.fromTo(nextBtn, {scale:0.8},{scale:1,duration:0.25,ease:'back.out(2)'}));
-  });
+  // Swipe no carrossel
+  let _swx=0;
+  skinGrid.addEventListener('touchstart',e=>{_swx=e.touches[0].clientX;},{passive:true});
+  skinGrid.addEventListener('touchend',e=>{
+    const dx=e.changedTouches[0].clientX-_swx;
+    if(Math.abs(dx)>28) goToPage(_page+(dx<0?1:-1));
+  },{passive:true});
 
-  nav.appendChild(prevBtn);
-  nav.appendChild(dotsWrap);
-  nav.appendChild(nextBtn);
-  D.skinGrid.after(nav);
-
-  // Swipe no grid
-  let _swipeX = 0;
-  D.skinGrid.addEventListener('touchstart', e => { _swipeX = e.touches[0].clientX; }, {passive:true});
-  D.skinGrid.addEventListener('touchend', e => {
-    const dx = e.changedTouches[0].clientX - _swipeX;
-    if (Math.abs(dx) > 30) _goToPage(_currentPage + (dx < 0 ? 1 : -1));
-  }, {passive:true});
-
-  // ── Toggle expand/collapse ───────────────────────────────────
-  function _openPanel() {
-    D.skinBody?.classList.remove('hidden');
-    D.skinToggle?.classList.add('open');
-    _startPreview();
-    _ensureGSAP(() => {
-      gsap.fromTo(D.skinBody, {opacity:0,y:-8},{opacity:1,y:0,duration:0.3,ease:'power2.out'});
-    });
+  // ── Toggle painel ──────────────────────────────────────────
+  function openPanel(){
+    if(skinBody){ skinBody.style.display='flex'; skinBody.classList.remove('hidden'); }
+    if(skinToggle) skinToggle.classList.add('open');
+    startPreview();
   }
-  function _closePanel() {
-    _ensureGSAP(() => {
-      gsap.to(D.skinBody, {opacity:0,y:-6,duration:0.2,ease:'power2.in', onComplete:()=>{
-        D.skinBody?.classList.add('hidden');
-        D.skinToggle?.classList.remove('open');
-        _stopPreview();
-      }});
-    });
+  function closePanel(){
+    if(skinBody){ skinBody.classList.add('hidden'); skinBody.style.display=''; }
+    if(skinToggle) skinToggle.classList.remove('open');
+    stopPreview();
   }
 
-  D.skinToggle?.addEventListener('click', () => {
-    const isOpen = !D.skinBody?.classList.contains('hidden');
-    if (isOpen) _closePanel(); else _openPanel();
-  });
-  // Clique no header também abre
-  D.skinPanel?.querySelector('.skin-header')?.addEventListener('click', (e) => {
-    if (e.target === D.skinToggle || D.skinToggle?.contains(e.target)) return;
-    const isOpen = !D.skinBody?.classList.contains('hidden');
-    if (isOpen) _closePanel(); else _openPanel();
+  const header = el('skin-panel')?.querySelector('.skin-header');
+  header?.addEventListener('click',()=>{
+    const closed = skinBody?.classList.contains('hidden');
+    if(closed) openPanel(); else closePanel();
   });
 
-  // Reage a mudanças de skin/cor
-  Bus.on('skinChanged', () => {
-    _refreshSkinMinis();
+  // Bus: atualiza cores quando tema muda
+  window.Bus?.on('skinChanged',()=>refreshAllMinis(cards));
+}
+
+// ── Nível grid ────────────────────────────────────────────────────
+function _buildLevelGrid() {
+  const grid = el('level-grid'); if(!grid) return;
+  grid.innerHTML = '';
+  const unlocked = window.Store?.getUnlocked() || 1;
+  (window.LEVELS||[]).forEach((lvl,i) => {
+    const num    = i+1;
+    const locked = num > unlocked;
+    const btn    = document.createElement('div');
+    btn.className = 'level-cell'+(locked?' locked':'');
+    btn.innerHTML = `<span class="lc-num">${num}</span><span class="lc-name">${lvl.label}</span>`;
+    if(!locked) btn.addEventListener('click',()=>{
+      _selectedLevel=num; _selectedMode='challenge';
+      qsa('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode==='challenge'));
+      _hide(el('level-panel')); _startGame();
+    });
+    grid.appendChild(btn);
   });
 }
 
-function _refreshRankColors() {
-  const color = SnakeSkin.getColor();
-  document.querySelectorAll('.rank-row.rank-me .rank-nick').forEach(el => {
-    el.style.color = color.body;
+// ── Stats ─────────────────────────────────────────────────────────
+function _showStats() {
+  const s = window.Store?.getStats() || {};
+  const set=(id,v)=>{ const e=el(id);if(e)e.textContent=v; };
+  set('stat-games',      s.gamesPlayed||0);
+  set('stat-total-score',s.totalScore||0);
+  set('stat-total-food', s.totalFood||0);
+  set('stat-best-combo', `×${s.bestCombo||0}`);
+  const m=Math.floor((s.playTime||0)/60000), sec=Math.floor(((s.playTime||0)%60000)/1000);
+  set('stat-play-time',`${m}m ${sec}s`);
+  _show(el('stats-panel'));
+}
+
+// ── Botões ────────────────────────────────────────────────────────
+function _bindButtons() {
+  el('play-btn')?.addEventListener('click',()=>{ if(el('overlay')?.dataset.phase!=='levelup') _startGame(); });
+  el('levels-btn')?.addEventListener('click',()=>{ _buildLevelGrid(); _show(el('level-panel')); });
+  el('level-back')?.addEventListener('click',()=>_hide(el('level-panel')));
+  el('stats-btn')?.addEventListener('click',()=>_showStats());
+  el('stats-back')?.addEventListener('click',()=>_hide(el('stats-panel')));
+  el('rank-refresh-side')?.addEventListener('click',()=>RankPanel.load(true));
+
+  el('sound-btn')?.addEventListener('click',()=>{
+    const on = window.SoundBus?.toggle();
+    const off=el('icon-sound-off'), ons=el('icon-sound-on');
+    if(off) off.style.display = on ? 'none' : '';
+    if(ons) ons.style.display = on ? '' : 'none';
+  });
+
+  qsa('.mode-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(window.state?.phase==='playing') return;
+      _selectedMode=btn.dataset.mode;
+      qsa('.mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===_selectedMode));
+      const stBest=el('st-best');
+      if(stBest) stBest.textContent=window.Store?.getBest(_selectedMode)||0;
+      // Atualiza ranking para o modo selecionado
+      RankPanel.setMode(_selectedMode);
+      RankPanel.load();
+      if(_selectedMode==='challenge'){ _buildLevelGrid(); _show(el('level-panel')); }
+    });
   });
 }
 
+// ── Bus ───────────────────────────────────────────────────────────
+function _bindBus() {
+  const B = window.Bus; if(!B) return;
+
+  B.on('stateUpdate', _updateHUD);
+
+  B.on('foodEaten', ({combo}) => {
+    if(combo!==_lastCombo){ _lastCombo=combo; _showComboPopup(combo); }
+    if((window.state?.score||0) >= (window.state?._nextSlowShrink||500)){
+      const sc=el('score-live');
+      if(sc){ sc.classList.add('milestone'); setTimeout(()=>sc.classList.remove('milestone'),400); }
+    }
+  });
+
+  B.on('gameOver', data => {
+    setTimeout(()=>_showGameOver(data), 350);
+    setTimeout(()=>{ RankPanel.setMode(window.state?.mode||'classic'); RankPanel.load(true); }, 2000);
+  });
+
+  B.on('phaseChange', phase => {
+    if(phase==='playing'){
+      _hideOverlay();
+      ['portal-active','shield-active','freeze-active','dash-active'].forEach(c=>el('arena')?.classList.remove(c));
+    }
+    if(phase==='win'){
+      _show(el('overlay'));
+      const set=(id,v)=>{const e=el(id);if(e)e.textContent=v;};
+      set('ov-label','PARABÉNS!');
+      set('ov-score',String(window.state?.score||0).padStart(2,'0'));
+      set('ov-sub','Todos os setores concluídos.');
+      const pb=el('play-btn'); if(pb) pb.textContent='jogar novamente';
+    }
+  });
+
+  B.on('levelComplete',({level,bonus})=>{
+    const ov=el('overlay'); if(!ov) return;
+    _show(ov); ov.dataset.phase='levelup';
+    const set=(id,v)=>{const e=el(id);if(e)e.textContent=v;};
+    set('ov-label',`SETOR ${level} OK`);
+    set('ov-score',`+${bonus}`);
+    set('ov-sub','avançando...');
+  });
+
+  B.on('powerupEnd',  ()=>{  const p=el('pw-fill');if(p){p.style.width='0%';p.dataset.kind='';} const lb=el('pw-label');if(lb)lb.textContent=''; });
+  B.on('powerupTick', ({timer,duration})=>{
+    const p=el('pw-fill'); if(!p||!duration) return;
+    p.style.width=Math.max(0,(timer/duration)*100)+'%';
+  });
+
+  // Arena overlays para poderes
+  B.on('portalModeStart',()=>el('arena')?.classList.add('portal-active'));
+  B.on('portalModeEnd',  ()=>el('arena')?.classList.remove('portal-active'));
+  B.on('shieldStart',    ()=>el('arena')?.classList.add('shield-active'));
+  B.on('shieldBroken',   ()=>{ el('arena')?.classList.remove('shield-active'); const a=el('arena');if(a){a.style.boxShadow='inset 0 0 20px #fde68a';setTimeout(()=>{a.style.boxShadow='';},400);} });
+  B.on('freezeStart',    ()=>el('arena')?.classList.add('freeze-active'));
+  B.on('freezeEnd',      ()=>el('arena')?.classList.remove('freeze-active'));
+  B.on('powerupStart',({kind})=>{
+    if(kind==='dash')   el('arena')?.classList.add('dash-active');
+    if(kind==='shield') el('arena')?.classList.add('shield-active');
+  });
+  B.on('powerupEnd',({kind})=>{
+    if(kind==='dash')   el('arena')?.classList.remove('dash-active');
+    if(kind==='shield') el('arena')?.classList.remove('shield-active');
+  });
+
+  // Aviso 500pts
+  B.on('forcedPowerup',({message})=>{
+    const fe=el('forced-event'); if(!fe) return;
+    const ft=fe.querySelector('.fe-text'); if(ft) ft.textContent=message||'500 PTS';
+    fe.classList.remove('hidden','show');
+    void fe.offsetWidth;
+    fe.classList.remove('hidden');
+    fe.classList.add('show');
+    setTimeout(()=>{ fe.classList.remove('show'); fe.classList.add('hidden'); },3500);
+  });
+
+  // Timer urgente
+  B.on('timerTick',t=>{
+    const tf=el('timer-fill');
+    if(tf) tf.classList.toggle('urgent', t!==null&&t<=10000);
+  });
+
+  // Tooltip de comida rara
+  B.on('foodEaten',({food})=>{
+    if((food?.pts||0)>=20){
+      const arena=el('arena'); if(!arena) return;
+      const tip=document.createElement('div');
+      tip.className='food-tooltip';
+      tip.textContent=`+${food.pts} ${food.label||''}`;
+      tip.style.cssText=`left:${20+Math.random()*60}%;top:${20+Math.random()*50}%`;
+      arena.appendChild(tip);
+      setTimeout(()=>tip.remove(),1900);
+    }
+  });
+
+  B.on('newRecord',()=>setTimeout(()=>RankPanel.load(true),3000));
+}
+
+// ── Start ─────────────────────────────────────────────────────────
+function _startGame() {
+  _hideOverlay();
+  window.Engine?.start(_selectedMode, _selectedMode==='challenge'?_selectedLevel:1);
+}
+
+// ── UIInit ────────────────────────────────────────────────────────
 export function UIInit() {
+  _initTheme();
   _initAuth();
   _bindBus();
   _bindKeyboard();
@@ -716,9 +662,10 @@ export function UIInit() {
   _bindDpad();
   _bindButtons();
   _showMenu();
-  _initSkinPanel();
-  _updateNickColor();
+  // Skin panel inicializa depois de um tick para garantir que
+  // window.SNAKE_SKINS e window.SnakeSkin já foram expostos pelo main.js
+  setTimeout(_initSkinPanel, 0);
 }
 
-// Exposição global (para console debug e callbacks inline de HTML)
+// Globals para acesso externo
 window.RankPanel = RankPanel;
